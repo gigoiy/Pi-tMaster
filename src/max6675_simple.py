@@ -7,8 +7,10 @@ class MAX6675:
     def __init__(self, cs_pin):
         self.cs_pin = cs_pin
         self.spi = spidev.SpiDev()
-        self.spi.open(0, 0)  # SPI bus 0, device 0
-        self.spi.max_speed_hz = 1000000
+        self.spi.open(0, 0)
+        self.spi.max_speed_hz = 500000  # Try slower speed
+        self.spi.mode = 0b00  # Explicitly set SPI Mode 0
+        self.spi.lsbfirst = False  # MSB first
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.cs_pin, GPIO.OUT)
         GPIO.output(self.cs_pin, GPIO.HIGH)
