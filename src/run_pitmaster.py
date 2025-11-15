@@ -54,7 +54,7 @@ def create_app():
     
     @app.route('/powerstatus')
     def powerstatus():
-        """Check current power status"""
+        # Check current power status
         try:
             with open('/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor', 'r') as f:
                 governor = f.read().strip()
@@ -80,7 +80,7 @@ def create_app():
         
     @app.route('/enable-low-power')
     def enable_low_power():
-        """Enable low power mode"""
+        # Enable low power mode
         try:
             with open('/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor', 'w') as f:
                 f.write('powersave')
@@ -94,7 +94,7 @@ def create_app():
 
     @app.route('/enable-full-power')
     def enable_full_power():
-        """Enable full power mode"""
+        # Enable full power mode
         try:
             with open('/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor', 'w') as f:
                 f.write('ondemand')
@@ -108,14 +108,14 @@ def create_app():
 
     @app.route('/shutdown')
     def shutdown():
-        """Manual shutdown endpoint"""
+        # Manual shutdown endpoint
         import subprocess
         subprocess.run(["sudo", "shutdown", "-h", "now"])
         return "System is shutting down..."
 
     @app.route('/reboot')
     def reboot():
-        """Manual reboot endpoint"""
+        # Manual reboot endpoint
         import subprocess
         subprocess.run(["sudo", "reboot"])
         return "System is rebooting..."
