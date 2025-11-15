@@ -39,7 +39,6 @@ sudo raspi-config nonint do_spi 0
 echo -e "\n${YELLOW}[3/6] Creating installation directory...${NC}"
 mkdir -p $INSTALL_DIR
 cp -r src/* $INSTALL_DIR/
-cp requirements.txt $INSTALL_DIR/
 
 # Step 4: Setup Python virtual environment
 echo -e "\n${YELLOW}[4/6] Setting up Python virtual environment...${NC}"
