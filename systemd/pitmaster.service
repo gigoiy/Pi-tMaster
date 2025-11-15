@@ -8,7 +8,7 @@ Type=simple
 User=shmeggle
 WorkingDirectory=/home/shmeggle/PitMaster/src
 Environment=PATH=/home/shmeggle/PitMaster/pitmaster/bin
-ExecStart=/home/shmeggle/PitMaster/pitmaster/bin/python /home/shmeggle/pitmaster/src/run_pitmaster.py
+ExecStart=/home/shmeggle/PitMaster/pitmaster/bin/python /home/shmeggle/PitMaster/src/run_pitmaster.py
 Restart=no
 TimeoutStopSec=30
 
