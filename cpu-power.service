@@ -1,0 +1,17 @@
+[Unit]
+Description=CPU Power Management for PitMaster
+After=multi-user.target
+Before=pitmaster.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'echo powersave > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor'
+ExecStart=/bin/bash -c 'echo 300000 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq'
+ExecStart=/bin/bash -c 'echo 600000 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
+ExecStart=/bin/bash -c 'vcgencmd display_power 0'
+ExecStart=/bin/bash -c 'rfkill block bluetooth'
+RemainAfterExit=yes
+User=root
+
+[Install]
+WantedBy=multi-user.target

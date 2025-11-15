@@ -1,6 +1,7 @@
 [Unit]
 Description=PitMaster Temperature Monitor
-After=network.target
+After=network.target cpu-power.service
+Wants=network.target cpu-power.service
 
 [Service]
 Type=simple
@@ -8,8 +9,8 @@ User=shmeggle
 WorkingDirectory=/home/shmeggle/pitmaster/src
 Environment=PATH=/home/shmeggle/pitmaster/pitmaster_env/bin
 ExecStart=/home/shmeggle/pitmaster/pitmaster_env/bin/python /home/shmeggle/pitmaster/src/run_pitmaster.py
-Restart=always
-RestartSec=5
+Restart=no
+TimeoutStopSec=30
 
 [Install]
 WantedBy=multi-user.target
