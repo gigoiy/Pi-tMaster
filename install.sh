@@ -70,7 +70,7 @@ source pitmaster/bin/activate
 # Install Python dependencies
 echo "Installing Python packages..."
 pip install --upgrade pip
-pip install -r requirements.txt
+pip install -r src/requirements.txt
 
 # Step 6: Setup systemd services
 echo -e "\n${YELLOW}[6/7] Setting up system services...${NC}"
