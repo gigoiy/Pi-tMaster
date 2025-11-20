@@ -34,9 +34,10 @@ def create_app():
     def read_cpufreq_status():
         """Read CPU frequency settings using helper script"""
         try:
+            # Use full path to sudo for reliability
             result = subprocess.run(
-                ['sudo', '/usr/local/bin/cpu-power-helper.sh', 'get-status'],
-                capture_output=True, text=True, check=True, timeout=5
+                ['/usr/bin/sudo', '/usr/local/bin/cpu-power-helper.sh', 'get-status'],
+                capture_output=True, text=True, check=True, timeout=10
             )
             lines = result.stdout.strip().split('\n')
             if len(lines) >= 4:
@@ -47,11 +48,13 @@ def create_app():
                     'max_freq': lines[3]
                 }
             else:
-                raise Exception("Invalid response from helper script")
+                raise Exception(f"Invalid response from helper script. Got {len(lines)} lines, expected 4")
         except subprocess.TimeoutExpired:
-            raise Exception("Helper script timeout")
+            raise Exception("Helper script timeout - check if helper script is installed correctly")
         except subprocess.CalledProcessError as e:
-            raise Exception(f"Helper script error: {e.stderr}")
+            raise Exception(f"Helper script error (code {e.returncode}): {e.stderr}")
+        except FileNotFoundError:
+            raise Exception("sudo or helper script not found - check installation")
         except Exception as e:
             raise Exception(f"Failed to read CPU settings: {str(e)}")
 
@@ -59,20 +62,22 @@ def create_app():
         """Set CPU frequency mode using helper script"""
         try:
             if mode == 'powersave':
-                cmd = ['sudo', '/usr/local/bin/cpu-power-helper.sh', 'set-powersave']
+                cmd = ['/usr/bin/sudo', '/usr/local/bin/cpu-power-helper.sh', 'set-powersave']
             elif mode == 'ondemand':
-                cmd = ['sudo', '/usr/local/bin/cpu-power-helper.sh', 'set-ondemand']
+                cmd = ['/usr/bin/sudo', '/usr/bin/local/cpu-power-helper.sh', 'set-ondemand']
             else:
                 raise ValueError("Invalid mode")
             
             result = subprocess.run(
-                cmd, capture_output=True, text=True, check=True, timeout=5
+                cmd, capture_output=True, text=True, check=True, timeout=10
             )
             return result.stdout.strip()
         except subprocess.TimeoutExpired:
-            raise Exception("Helper script timeout")
+            raise Exception("Helper script timeout - check if helper script is installed correctly")
         except subprocess.CalledProcessError as e:
-            raise Exception(f"Helper script error: {e.stderr}")
+            raise Exception(f"Helper script error (code {e.returncode}): {e.stderr}")
+        except FileNotFoundError:
+            raise Exception("sudo or helper script not found - check installation")
         except Exception as e:
             raise Exception(f"Failed to set CPU settings: {str(e)}")
 
@@ -118,6 +123,7 @@ def create_app():
                 "status": "Running"
             })
         except Exception as e:
+            print(f"ERROR in powerstatus: {str(e)}")  # Debug logging
             return jsonify({"error": str(e)}), 500
         
     @app.route('/enable-low-power')
@@ -148,7 +154,7 @@ def create_app():
     def shutdown():
         # Manual shutdown endpoint
         try:
-            subprocess.run(["sudo", "shutdown", "-h", "now"], check=True)
+            subprocess.run(["/usr/bin/sudo", "shutdown", "-h", "now"], check=True)
             return "System is shutting down..."
         except Exception as e:
             return f"Error: {str(e)}"
@@ -157,7 +163,7 @@ def create_app():
     def reboot():
         # Manual reboot endpoint
         try:
-            subprocess.run(["sudo", "reboot"], check=True)
+            subprocess.run(["/usr/bin/sudo", "reboot"], check=True)
             return "System is rebooting..."
         except Exception as e:
             return f"Error: {str(e)}"

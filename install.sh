@@ -40,16 +40,27 @@ echo -e "\n${YELLOW}[3/7] Creating installation directory...${NC}"
 mkdir -p $INSTALL_DIR
 mkdir -p $INSTALL_DIR/scripts
 cp -r src/* $INSTALL_DIR/
+cp -r scripts/* $INSTALL_DIR/scripts/
 
 # Step 4: Setup CPU power helper script
 echo -e "\n${YELLOW}[4/7] Setting up CPU power helper script...${NC}"
 
 # Copy helper script to system location
 sudo cp $INSTALL_DIR/scripts/cpu-power-helper.sh /usr/local/bin/
-sudo chmod +x /usr/local/bin/cpu-power-helper.sh
+sudo chmod 755 /usr/local/bin/cpu-power-helper.sh
+
+# Verify helper script syntax
+echo -e "${YELLOW}Checking helper script syntax...${NC}"
+if bash -n /usr/local/bin/cpu-power-helper.sh; then
+    echo -e "${GREEN}Helper script syntax is valid${NC}"
+else
+    echo -e "${RED}Helper script has syntax errors${NC}"
+    exit 1
+fi
 
 # Setup sudo permissions for the helper script
-echo "$SERVICE_USER ALL=(ALL) NOPASSWD: /sbin/shutdown, /sbin/reboot, /usr/local/bin/cpu-power-helper.sh" | sudo tee /etc/sudoers.d/pitmaster
+echo -e "${YELLOW}Setting up sudo permissions...${NC}"
+echo "$SERVICE_USER ALL=(ALL) NOPASSWD: /usr/local/bin/cpu-power-helper.sh" | sudo tee /etc/sudoers.d/pitmaster
 sudo chmod 440 /etc/sudoers.d/pitmaster
 
 # Step 5: Setup Python virtual environment
@@ -83,7 +94,7 @@ sudo systemctl start cpu-power.service
 sudo systemctl start pitmaster.service
 
 # Wait a moment for services to start
-sleep 3
+sleep 5
 
 # Check service status
 echo -e "\n${YELLOW}Service Status:${NC}"
@@ -101,12 +112,27 @@ else
     sudo systemctl status cpu-power.service --no-pager
 fi
 
-# Test helper script
+# Test helper script thoroughly
 echo -e "\n${YELLOW}Testing CPU power helper...${NC}"
-if sudo /usr/local/bin/cpu-power-helper.sh get-status > /dev/null 2>&1; then
-    echo -e "CPU power helper: ${GREEN}WORKING${NC}"
+echo -e "${YELLOW}Testing as current user...${NC}"
+if /usr/local/bin/cpu-power-helper.sh get-status > /dev/null 2>&1; then
+    echo -e "Direct helper script: ${GREEN}WORKING${NC}"
 else
-    echo -e "CPU power helper: ${RED}NOT WORKING${NC}"
+    echo -e "Direct helper script: ${RED}FAILED${NC}"
+fi
+
+echo -e "${YELLOW}Testing with sudo...${NC}"
+if sudo /usr/local/bin/cpu-power-helper.sh get-status > /dev/null 2>&1; then
+    echo -e "Sudo helper script: ${GREEN}WORKING${NC}"
+    
+    # Test actual output
+    echo -e "${YELLOW}Testing actual output...${NC}"
+    sudo /usr/local/bin/cpu-power-helper.sh get-status
+else
+    echo -e "Sudo helper script: ${RED}FAILED${NC}"
+    echo -e "${YELLOW}Debug info:${NC}"
+    ls -la /usr/local/bin/cpu-power-helper.sh
+    sudo /usr/local/bin/cpu-power-helper.sh get-status
 fi
 
 # Get IP address
@@ -119,33 +145,10 @@ echo -e "PitMaster is now running and will start automatically on boot."
 echo -e ""
 echo -e "${YELLOW}Access your PitMaster at:${NC}"
 echo -e "   http://$IP_ADDRESS:8080"
-echo -e "   http://pitmaster.local:8080"
 echo -e ""
-echo -e "${YELLOW}Installation directory:${NC} $INSTALL_DIR"
-echo -e "${YELLOW}Virtual environment:${NC} $INSTALL_DIR/pitmaster"
+echo -e "${YELLOW}If power management doesn't work:${NC}"
+echo -e "1. Check helper script: sudo /usr/local/bin/cpu-power-helper.sh get-status"
+echo -e "2. Check sudoers: sudo visudo -c"
+echo -e "3. Check service logs: sudo journalctl -u pitmaster.service -f"
 echo -e ""
-echo -e "${YELLOW}Useful commands:${NC}"
-echo -e "   sudo systemctl stop pitmaster.service    # Stop service"
-echo -e "   sudo systemctl start pitmaster.service   # Start service"
-echo -e "   sudo systemctl restart pitmaster.service # Restart service"
-echo -e "   sudo journalctl -u pitmaster.service -f  # View logs"
-echo -e ""
-echo -e "${YELLOW}Power Management:${NC}"
-echo -e "   The web interface now supports dynamic power mode switching!"
-echo -e "   - Low Power: 300-600 MHz (powersave governor)"
-echo -e "   - Full Power: 600-1500 MHz (ondemand governor)"
-echo -e ""
-echo -e "${YELLOW}Sensor Wiring Guide:${NC}"
-echo -e "   All MAX6675 chips share:"
-echo -e "   - SO  → GPIO9  (pin 21) - MISO"
-echo -e "   - SCLK → GPIO11 (pin 23) - SCLK"
-echo -e "   - VCC  → 5V"
-echo -e "   - GND  → GND"
-echo -e ""
-echo -e "   Individual CS lines:"
-echo -e "   - Left probe  CS → GPIO8  (pin 24)"
-echo -e "   - Right probe CS → GPIO7  (pin 26)"
-echo -e "   - Meat probe  CS → GPIO16 (pin 36)"
-echo -e ""
-
 echo -e "${GREEN}Enjoy your PitMaster! 🥩🔥${NC}"
