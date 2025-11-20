@@ -36,7 +36,7 @@ def create_app():
         try:
             # Use full path to sudo for reliability
             result = subprocess.run(
-                'sudo /usr/local/bin/cpu-power-helper.sh get-status',
+                '/usr/bin/sudo /usr/local/bin/cpu-power-helper.sh get-status',
                 capture_output=True, text=True, check=True, timeout=10
             )
             lines = result.stdout.strip().split('\n')
@@ -62,9 +62,9 @@ def create_app():
         # Set CPU frequency mode using helper script
         try:
             if mode == 'powersave':
-                cmd = 'sudo /usr/local/bin/cpu-power-helper.sh set-powersave'
+                cmd = '/usr/bin/sudo /usr/local/bin/cpu-power-helper.sh set-powersave'
             elif mode == 'ondemand':
-                cmd = 'sudo /usr/bin/local/cpu-power-helper.sh set-ondemand'
+                cmd = '/usr/bin/sudo /usr/bin/local/cpu-power-helper.sh set-ondemand'
             else:
                 raise ValueError("Invalid mode")
             
@@ -154,7 +154,7 @@ def create_app():
     def shutdown():
         # Manual shutdown endpoint
         try:
-            subprocess.run("sudo shutdown -h now", check=True)
+            subprocess.run("/usr/bin/sudo shutdown -h now", check=True)
             return "System is shutting down..."
         except Exception as e:
             return f"Error: {str(e)}"
@@ -163,7 +163,7 @@ def create_app():
     def reboot():
         # Manual reboot endpoint
         try:
-            subprocess.run("sudo reboot", check=True)
+            subprocess.run("/usr/bin/sudo reboot", check=True)
             return "System is rebooting..."
         except Exception as e:
             return f"Error: {str(e)}"
