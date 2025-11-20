@@ -18,9 +18,16 @@ sudo systemctl disable cpu-power.service
 echo "Removing service files..."
 sudo rm -f /etc/systemd/system/pitmaster.service
 sudo rm -f /etc/systemd/system/cpu-power.service
-sudo rm -f /etc/sudoers.d/PitMaster
 
-# Reload systemd
+# Remove CPU power helper script
+echo "Removing CPU power helper script..."
+sudo rm -f /usr/local/bin/cpu-power-helper.sh
+
+# Remove sudoers configuration
+echo "Removing sudoers configuration..."
+sudo rm -f /etc/sudoers.d/pitmaster
+
+# Reload systemd and sudoers
 sudo systemctl daemon-reload
 
 # Remove installation directory

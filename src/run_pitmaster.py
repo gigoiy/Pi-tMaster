@@ -31,6 +31,51 @@ def create_app():
 
     app = Flask(__name__)
 
+    def read_cpufreq_status():
+        """Read CPU frequency settings using helper script"""
+        try:
+            result = subprocess.run(
+                ['sudo', '/usr/local/bin/cpu-power-helper.sh', 'get-status'],
+                capture_output=True, text=True, check=True, timeout=5
+            )
+            lines = result.stdout.strip().split('\n')
+            if len(lines) >= 4:
+                return {
+                    'governor': lines[0],
+                    'cur_freq': lines[1],
+                    'min_freq': lines[2],
+                    'max_freq': lines[3]
+                }
+            else:
+                raise Exception("Invalid response from helper script")
+        except subprocess.TimeoutExpired:
+            raise Exception("Helper script timeout")
+        except subprocess.CalledProcessError as e:
+            raise Exception(f"Helper script error: {e.stderr}")
+        except Exception as e:
+            raise Exception(f"Failed to read CPU settings: {str(e)}")
+
+    def set_cpufreq_mode(mode):
+        """Set CPU frequency mode using helper script"""
+        try:
+            if mode == 'powersave':
+                cmd = ['sudo', '/usr/local/bin/cpu-power-helper.sh', 'set-powersave']
+            elif mode == 'ondemand':
+                cmd = ['sudo', '/usr/local/bin/cpu-power-helper.sh', 'set-ondemand']
+            else:
+                raise ValueError("Invalid mode")
+            
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, check=True, timeout=5
+            )
+            return result.stdout.strip()
+        except subprocess.TimeoutExpired:
+            raise Exception("Helper script timeout")
+        except subprocess.CalledProcessError as e:
+            raise Exception(f"Helper script error: {e.stderr}")
+        except Exception as e:
+            raise Exception(f"Failed to set CPU settings: {str(e)}")
+
     def read_sensors_loop():
         while True:
             for name, sensor in sensors.items():
@@ -54,16 +99,13 @@ def create_app():
     
     @app.route('/powerstatus')
     def powerstatus():
-        # Check current power status
+        # Check current power status using helper script
         try:
-            with open('/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor', 'r') as f:
-                governor = f.read().strip()
-            with open('/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq', 'r') as f:
-                cur_freq = int(f.read().strip()) // 1000
-            with open('/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq', 'r') as f:
-                min_freq = int(f.read().strip()) // 1000
-            with open('/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq', 'r') as f:
-                max_freq = int(f.read().strip()) // 1000
+            cpufreq = read_cpufreq_status()
+            governor = cpufreq['governor']
+            cur_freq = int(cpufreq['cur_freq']) // 1000
+            min_freq = int(cpufreq['min_freq']) // 1000
+            max_freq = int(cpufreq['max_freq']) // 1000
         
             power_mode = "LOW POWER 24/7" if governor == "powersave" else "FULL POWER"
         
@@ -80,45 +122,45 @@ def create_app():
         
     @app.route('/enable-low-power')
     def enable_low_power():
-        # Enable low power mode
+        # Enable low power mode using helper script
         try:
-            with open('/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor', 'w') as f:
-                f.write('powersave')
-            with open('/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq', 'w') as f:
-                f.write('300000')
-            with open('/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq', 'w') as f:
-                f.write('600000')
-            return "Low power mode enabled"
+            result = set_cpufreq_mode('powersave')
+            if result == "OK":
+                return "Low power mode enabled successfully"
+            else:
+                return f"Unexpected response: {result}"
         except Exception as e:
             return f"Error: {str(e)}"
 
     @app.route('/enable-full-power')
     def enable_full_power():
-        # Enable full power mode
+        # Enable full power mode using helper script
         try:
-            with open('/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor', 'w') as f:
-                f.write('ondemand')
-            with open('/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq', 'w') as f:
-                f.write('600000')  # 600 MHz min
-            with open('/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq', 'w') as f:
-                f.write('1500000')  # 1.5 GHz max for Pi 4
-            return "Full power mode enabled"
+            result = set_cpufreq_mode('ondemand')
+            if result == "OK":
+                return "Full power mode enabled successfully"
+            else:
+                return f"Unexpected response: {result}"
         except Exception as e:
             return f"Error: {str(e)}"
 
     @app.route('/shutdown')
     def shutdown():
         # Manual shutdown endpoint
-        import subprocess
-        subprocess.run(["sudo", "shutdown", "-h", "now"])
-        return "System is shutting down..."
+        try:
+            subprocess.run(["sudo", "shutdown", "-h", "now"], check=True)
+            return "System is shutting down..."
+        except Exception as e:
+            return f"Error: {str(e)}"
 
     @app.route('/reboot')
     def reboot():
         # Manual reboot endpoint
-        import subprocess
-        subprocess.run(["sudo", "reboot"])
-        return "System is rebooting..."
+        try:
+            subprocess.run(["sudo", "reboot"], check=True)
+            return "System is rebooting..."
+        except Exception as e:
+            return f"Error: {str(e)}"
 
     sensor_thread = threading.Thread(target=read_sensors_loop, daemon=True)
     sensor_thread.start()
