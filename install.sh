@@ -39,8 +39,6 @@ sudo raspi-config nonint do_spi 0
 echo -e "\n${YELLOW}[3/7] Creating installation directory...${NC}"
 mkdir -p $INSTALL_DIR
 mkdir -p $INSTALL_DIR/scripts
-cp -r src/* $INSTALL_DIR/
-cp -r scripts/* $INSTALL_DIR/scripts/
 
 # Step 4: Setup CPU power helper script
 echo -e "\n${YELLOW}[4/7] Setting up CPU power helper script...${NC}"
