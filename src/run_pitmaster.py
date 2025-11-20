@@ -32,7 +32,7 @@ def create_app():
     app = Flask(__name__)
 
     def read_cpufreq_status():
-        """Read CPU frequency settings using helper script"""
+        # Read CPU frequency settings using helper script
         try:
             # Use full path to sudo for reliability
             result = subprocess.run(
@@ -59,7 +59,7 @@ def create_app():
             raise Exception(f"Failed to read CPU settings: {str(e)}")
 
     def set_cpufreq_mode(mode):
-        """Set CPU frequency mode using helper script"""
+        # Set CPU frequency mode using helper script
         try:
             if mode == 'powersave':
                 cmd = ['/usr/bin/sudo', '/usr/local/bin/cpu-power-helper.sh', 'set-powersave']
