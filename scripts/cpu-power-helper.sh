@@ -13,15 +13,15 @@ case "$1" in
         echo "$max_freq"
         ;;
     "set-powersave")
-        echo "powersave" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-        echo "300000" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
-        echo "600000" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+        sudo echo "powersave" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+        sudo echo "300000" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
+        sudo echo "600000" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
         echo "OK"
         ;;
     "set-ondemand")
-        echo "ondemand" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-        echo "600000" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
-        echo "1500000" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+        sudo echo "ondemand" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+        sudo echo "600000" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
+        sudo echo "1500000" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
         echo "OK"
         ;;
     *)

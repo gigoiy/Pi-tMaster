@@ -36,7 +36,7 @@ def create_app():
         try:
             # Use full path to sudo for reliability
             result = subprocess.run(
-                '/usr/bin/sudo /usr/local/bin/cpu-power-helper.sh get-status',
+                '/usr/local/bin/cpu-power-helper.sh get-status',
                 capture_output=True, text=True, check=True, timeout=10
             )
             lines = result.stdout.strip().split('\n')
@@ -62,9 +62,9 @@ def create_app():
         # Set CPU frequency mode using helper script
         try:
             if mode == 'powersave':
-                cmd = '/usr/bin/sudo /usr/local/bin/cpu-power-helper.sh set-powersave'
+                cmd = '/usr/local/bin/cpu-power-helper.sh set-powersave'
             elif mode == 'ondemand':
-                cmd = '/usr/bin/sudo /usr/bin/local/cpu-power-helper.sh set-ondemand'
+                cmd = '/usr/bin/local/cpu-power-helper.sh set-ondemand'
             else:
                 raise ValueError("Invalid mode")
             
