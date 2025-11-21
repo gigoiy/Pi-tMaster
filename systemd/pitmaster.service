@@ -1,15 +1,16 @@
 [Unit]
-Description=PitMaster Temperature Monitor
+Description=Pi-tMaster Temperature Monitor
 After=network.target cpu-power.service
 Wants=network.target cpu-power.service
 
 [Service]
 Type=simple
 User=shmeggle
-WorkingDirectory=/home/shmeggle/PitMaster/src
-Environment=PATH=/home/shmeggle/PitMaster/pitmaster/bin
-ExecStart=/home/shmeggle/PitMaster/pitmaster/bin/python /home/shmeggle/PitMaster/src/run_pitmaster.py
-Restart=no
+WorkingDirectory=/home/shmeggle/Pi-tMaster/src
+Environment=PATH=/home/shmeggle/Pi-tMaster/pitmaster/bin
+ExecStart=/home/shmeggle/Pi-tMaster/pitmaster/bin/python /home/shmeggle/Pi-tMaster/src/run_pitmaster.py
+Restart=on-failure
+RestartSec=10
 TimeoutStopSec=30
 
 [Install]

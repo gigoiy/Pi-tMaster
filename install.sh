@@ -1,5 +1,5 @@
 #!/bin/bash
-# PitMaster Installation Script
+# Pi-tMaster Installation Script
 
 set -e  # Exit on any error
 
@@ -20,28 +20,49 @@ if [ "$EUID" -eq 0 ]; then
 fi
 
 # Configuration
-INSTALL_DIR="$HOME/PitMaster"
+INSTALL_DIR="$HOME/Pi-tMaster"
 SERVICE_USER=$(whoami)
 
-echo -e "${YELLOW}Installing PitMaster for user: $SERVICE_USER${NC}"
+echo -e "${YELLOW}Installing Pi-tMaster for user: $SERVICE_USER${NC}"
 
 # Step 1: System updates and dependencies
-echo -e "\n${YELLOW}[1/6] Installing system dependencies...${NC}"
+echo -e "\n${YELLOW}[1/7] Installing system dependencies...${NC}"
 sudo apt update
 sudo apt upgrade -y
 sudo apt install -y python3 python3-pip python3-venv python3-dev git
 
 # Step 2: Enable SPI interface
-echo -e "\n${YELLOW}[2/6] Enabling SPI interface...${NC}"
+echo -e "\n${YELLOW}[2/7] Enabling SPI interface...${NC}"
 sudo raspi-config nonint do_spi 0
 
 # Step 3: Create installation directory
-echo -e "\n${YELLOW}[3/6] Creating installation directory...${NC}"
+echo -e "\n${YELLOW}[3/7] Creating installation directory...${NC}"
 mkdir -p $INSTALL_DIR
-cp -r src/* $INSTALL_DIR/
+mkdir -p $INSTALL_DIR/scripts
 
-# Step 4: Setup Python virtual environment
-echo -e "\n${YELLOW}[4/6] Setting up Python virtual environment...${NC}"
+# Step 4: Setup CPU power helper script
+echo -e "\n${YELLOW}[4/7] Setting up CPU power helper script...${NC}"
+
+# Copy helper script to system location
+sudo cp $INSTALL_DIR/scripts/cpu-power-helper.sh /usr/local/bin/
+sudo chmod 755 /usr/local/bin/cpu-power-helper.sh
+
+# Verify helper script syntax
+echo -e "${YELLOW}Checking helper script syntax...${NC}"
+if bash -n /usr/local/bin/cpu-power-helper.sh; then
+    echo -e "${GREEN}Helper script syntax is valid${NC}"
+else
+    echo -e "${RED}Helper script has syntax errors${NC}"
+    exit 1
+fi
+
+# Setup sudo permissions for the helper script
+echo -e "${YELLOW}Setting up sudo permissions...${NC}"
+echo "$SERVICE_USER ALL=(ALL) NOPASSWD: /usr/local/bin/cpu-power-helper.sh" | sudo tee /etc/sudoers.d/pitmaster
+sudo chmod 440 /etc/sudoers.d/pitmaster
+
+# Step 5: Setup Python virtual environment
+echo -e "\n${YELLOW}[5/7] Setting up Python virtual environment...${NC}"
 cd $INSTALL_DIR
 python3 -m venv pitmaster
 source pitmaster/bin/activate
@@ -49,10 +70,10 @@ source pitmaster/bin/activate
 # Install Python dependencies
 echo "Installing Python packages..."
 pip install --upgrade pip
-pip install -r requirements.txt
+pip install -r src/requirements.txt
 
-# Step 5: Setup systemd services
-echo -e "\n${YELLOW}[5/6] Setting up system services...${NC}"
+# Step 6: Setup systemd services
+echo -e "\n${YELLOW}[6/7] Setting up system services...${NC}"
 
 # Update service files with actual username
 sed -i "s/User=shmeggle/User=$SERVICE_USER/g" systemd/pitmaster.service
@@ -62,11 +83,8 @@ sed -i "s|/home/shmeggle|$HOME|g" systemd/pitmaster.service
 sudo cp systemd/pitmaster.service /etc/systemd/system/
 sudo cp systemd/cpu-power.service /etc/systemd/system/
 
-# Enable passwordless shutdown for the user
-echo "$SERVICE_USER ALL=(ALL) NOPASSWD: /sbin/shutdown, /sbin/reboot" | sudo tee /etc/sudoers.d/pitmaster
-
-# Step 6: Enable and start services
-echo -e "\n${YELLOW}[6/6] Starting services...${NC}"
+# Step 7: Enable and start services
+echo -e "\n${YELLOW}[7/7] Starting services...${NC}"
 sudo systemctl daemon-reload
 sudo systemctl enable cpu-power.service
 sudo systemctl enable pitmaster.service
@@ -74,7 +92,7 @@ sudo systemctl start cpu-power.service
 sudo systemctl start pitmaster.service
 
 # Wait a moment for services to start
-sleep 3
+sleep 5
 
 # Check service status
 echo -e "\n${YELLOW}Service Status:${NC}"
@@ -92,6 +110,29 @@ else
     sudo systemctl status cpu-power.service --no-pager
 fi
 
+# Test helper script thoroughly
+echo -e "\n${YELLOW}Testing CPU power helper...${NC}"
+echo -e "${YELLOW}Testing as current user...${NC}"
+if /usr/local/bin/cpu-power-helper.sh get-status > /dev/null 2>&1; then
+    echo -e "Direct helper script: ${GREEN}WORKING${NC}"
+else
+    echo -e "Direct helper script: ${RED}FAILED${NC}"
+fi
+
+echo -e "${YELLOW}Testing with sudo...${NC}"
+if sudo /usr/local/bin/cpu-power-helper.sh get-status > /dev/null 2>&1; then
+    echo -e "Sudo helper script: ${GREEN}WORKING${NC}"
+    
+    # Test actual output
+    echo -e "${YELLOW}Testing actual output...${NC}"
+    sudo /usr/local/bin/cpu-power-helper.sh get-status
+else
+    echo -e "Sudo helper script: ${RED}FAILED${NC}"
+    echo -e "${YELLOW}Debug info:${NC}"
+    ls -la /usr/local/bin/cpu-power-helper.sh
+    sudo /usr/local/bin/cpu-power-helper.sh get-status
+fi
+
 # Get IP address
 IP_ADDRESS=$(hostname -I | awk '{print $1}')
 
@@ -102,28 +143,10 @@ echo -e "PitMaster is now running and will start automatically on boot."
 echo -e ""
 echo -e "${YELLOW}Access your PitMaster at:${NC}"
 echo -e "   http://$IP_ADDRESS:8080"
-echo -e "   http://pitmaster.local:8080"
 echo -e ""
-echo -e "${YELLOW}Installation directory:${NC} $INSTALL_DIR"
-echo -e "${YELLOW}Virtual environment:${NC} $INSTALL_DIR/pitmaster_env"
+echo -e "${YELLOW}If power management doesn't work:${NC}"
+echo -e "1. Check helper script: sudo /usr/local/bin/cpu-power-helper.sh get-status"
+echo -e "2. Check sudoers: sudo visudo -c"
+echo -e "3. Check service logs: sudo journalctl -u pitmaster.service -f"
 echo -e ""
-echo -e "${YELLOW}Useful commands:${NC}"
-echo -e "   sudo systemctl stop pitmaster.service    # Stop service"
-echo -e "   sudo systemctl start pitmaster.service   # Start service"
-echo -e "   sudo systemctl restart pitmaster.service # Restart service"
-echo -e "   sudo journalctl -u pitmaster.service -f  # View logs"
-echo -e ""
-echo -e "${YELLOW}Sensor Wiring Guide:${NC}"
-echo -e "   All MAX6675 chips share:"
-echo -e "   - SO  → GPIO9  (pin 21) - MISO"
-echo -e "   - SCLK → GPIO11 (pin 23) - SCLK"
-echo -e "   - VCC  → 5V"
-echo -e "   - GND  → GND"
-echo -e ""
-echo -e "   Individual CS lines:"
-echo -e "   - Left probe  CS → GPIO8  (pin 24)"
-echo -e "   - Right probe CS → GPIO7  (pin 26)"
-echo -e "   - Meat probe  CS → GPIO16 (pin 36)"
-echo -e ""
-
 echo -e "${GREEN}Enjoy your PitMaster! 🥩🔥${NC}"
