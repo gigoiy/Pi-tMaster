@@ -5,7 +5,7 @@ echo "=========================================="
 echo "    PitMaster Uninstall Script"
 echo "=========================================="
 
-INSTALL_DIR="$HOME/PitMaster"
+INSTALL_DIR="$HOME/Pi-tMaster"
 
 # Stop and disable services
 echo "Stopping services..."

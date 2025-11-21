@@ -1,5 +1,5 @@
 [Unit]
-Description=CPU Power Management for PitMaster
+Description=CPU Power Management for Pi-tMaster
 After=network.target
 Before=pitmaster.service
 

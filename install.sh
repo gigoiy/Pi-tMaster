@@ -1,5 +1,5 @@
 #!/bin/bash
-# PitMaster Installation Script
+# Pi-tMaster Installation Script
 
 set -e  # Exit on any error
 
@@ -20,10 +20,10 @@ if [ "$EUID" -eq 0 ]; then
 fi
 
 # Configuration
-INSTALL_DIR="$HOME/PitMaster"
+INSTALL_DIR="$HOME/Pi-tMaster"
 SERVICE_USER=$(whoami)
 
-echo -e "${YELLOW}Installing PitMaster for user: $SERVICE_USER${NC}"
+echo -e "${YELLOW}Installing Pi-tMaster for user: $SERVICE_USER${NC}"
 
 # Step 1: System updates and dependencies
 echo -e "\n${YELLOW}[1/7] Installing system dependencies...${NC}"

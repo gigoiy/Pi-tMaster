@@ -1,14 +1,14 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-# PitMaster Quick Start Guide
+# Pi-tMaster Quick Start Guide
 
 ## Installation
-1. Run: `git clone https://github.com/gigoiy/PitMaster.git`
-2. Open terminal in the PitMaster directory
+1. Run: `git clone https://github.com/gigoiy/Pi-tMaster.git`
+2. Open terminal in the Pi-tMaster directory
 3. Run: `chmod +x install.sh && ./install.sh`
 
 ## Uninstallation
-1. Open terminal in the PitMaster directory
+1. Open terminal in the Pi-tMaster directory
 2. Run: `chmod +x uninstall.sh && ./uninstall.sh`
 
 ## Sensor Wiring
