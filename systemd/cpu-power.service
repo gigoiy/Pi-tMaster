@@ -1,6 +1,6 @@
 [Unit]
 Description=CPU Power Management for PitMaster
-After=multi-user.target
+After=network.target
 Before=pitmaster.service
 
 [Service]
