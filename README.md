@@ -33,6 +33,9 @@ Connect all three MAX6675 boards as follows:
 ![Hardware Picture](assets/Hardware.png)
 (Enclosure, Solar Power, and Perfboard Coming Soon)
 
+## Program Architecture
+![Architecture Diagram](assets/Pi-tmasterArchitectureDiagram.png)
+
 ## Accessing the Web Interface
 
 After installation, open a web browser and go to:
