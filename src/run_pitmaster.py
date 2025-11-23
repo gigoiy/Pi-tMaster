@@ -118,9 +118,21 @@ def create_app():
             temperature_data["last_updated"] = time.strftime("%Y-%m-%d %H:%M:%S")
             time.sleep(3)  # Read sensors every 3 seconds
 
+    # Route for temperature monitoring page
     @app.route('/')
-    def index():
-        return render_template('index.html')
+    @app.route('/temperature')
+    def temperature():
+        return render_template('temperature.html')
+
+    # Route for calibration page
+    @app.route('/calibration')
+    def calibration():
+        return render_template('calibration.html')
+
+    # Route for power management page
+    @app.route('/power')
+    def power():
+        return render_template('power.html')
 
     @app.route('/data')
     def get_data():
