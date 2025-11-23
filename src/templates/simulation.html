@@ -207,11 +207,11 @@
     // Check simulation status on page load
     async function checkSimulationStatus() {
         try {
-            const response = await fetch('/simulation/status');
-            const data = await response.json();
+            response = await fetch('/simulation/status');
+            data = await response.json();
             
-            const statusElement = document.getElementById('simulationStatus');
-            const toggle = document.getElementById('simulationToggle');
+            statusElement = document.getElementById('simulationStatus');
+            toggle = document.getElementById('simulationToggle');
             
             if (data.simulation_mode) {
                 statusElement.textContent = 'ACTIVE';
@@ -233,26 +233,26 @@
 
     // Toggle simulation mode
     async function toggleSimulationMode() {
-        const toggle = document.getElementById('simulationToggle');
-        const enabled = toggle.checked;
+        toggle = document.getElementById('simulationToggle');
+        enabled = toggle.checked;
         
         try {
             showNotification(`${enabled ? 'Enabling' : 'Disabling'} simulation mode...`, 'info');
-            const response = await fetch('/simulation/set_mode', {
+            response = await fetch('/simulation/set_mode', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     enabled: enabled
                 })
             });
-            const result = await response.json();
+            result = await response.json();
             
             if (result.status === 'success') {
                 showNotification(result.message, 'success');
                 checkSimulationStatus(); // Refresh status display
                 
                 // Show/hide warning
-                const warning = document.getElementById('simulationWarning');
+                warning = document.getElementById('simulationWarning');
                 if (enabled) {
                     warning.style.display = 'block';
                 } else {
@@ -273,7 +273,7 @@
 
     // Enable/disable simulation controls
     function enableSimulationControls(enabled) {
-        const controls = document.querySelectorAll('.simulation-controls');
+        controls = document.querySelectorAll('.simulation-controls');
         controls.forEach(control => {
             if (enabled) {
                 control.classList.remove('disabled');

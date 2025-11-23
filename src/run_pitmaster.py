@@ -231,7 +231,7 @@ def create_app():
     # Calibration endpoints
     @app.route('/calibration/status')
     def calibration_status():
-        """Get calibration status for all sensors"""
+        # Get calibration status for all sensors
         status = {}
         for name, sensor in sensors.items():
             if sensor is not None:
@@ -242,7 +242,7 @@ def create_app():
     
     @app.route('/calibration/add_point', methods=['POST'])
     def add_calibration_point():
-        """Add a calibration point for a sensor"""
+        # Add a calibration point for a sensor
         try:
             data = request.get_json()
             sensor_name = data.get('sensor_name')
@@ -264,7 +264,7 @@ def create_app():
     
     @app.route('/calibration/add_point_manual', methods=['POST'])
     def add_calibration_point_manual():
-        """Add a calibration point with manual measured temperature"""
+        # Add a calibration point with manual measured temperature
         try:
             data = request.get_json()
             sensor_name = data.get('sensor_name')
@@ -284,7 +284,7 @@ def create_app():
     
     @app.route('/calibration/clear', methods=['POST'])
     def clear_calibration():
-        """Clear calibration for a sensor"""
+        # Clear calibration for a sensor
         try:
             data = request.get_json()
             sensor_name = data.get('sensor_name')
@@ -299,7 +299,7 @@ def create_app():
 
     @app.route('/sensor/test')
     def test_sensors():
-        """Test all sensors and return their status"""
+        # Test all sensors and return their status
         results = {}
         for name, sensor in sensors.items():
             if sensor is not None:
@@ -314,7 +314,7 @@ def create_app():
     # Simulation endpoints for testing
     @app.route('/simulation/set_mode', methods=['POST'])
     def set_simulation_mode():
-        """Enable or disable simulation mode"""
+        # Enable or disable simulation mode
         try:
             data = request.get_json()
             mode = data.get('enabled', False)
@@ -334,7 +334,7 @@ def create_app():
 
     @app.route('/simulation/set_temperature', methods=['POST'])
     def set_simulated_temperature():
-        """Set simulated temperature for a sensor (for testing only)"""
+        # Set simulated temperature for a sensor (for testing only)
         try:
             # Check if simulation mode is enabled
             if not simulation_mode:
@@ -374,7 +374,7 @@ def create_app():
 
     @app.route('/simulation/set_all', methods=['POST'])
     def set_all_simulated_temperatures():
-        """Set all sensors to the same temperature (for testing only)"""
+        # Set all sensors to the same temperature (for testing only)
         try:
             # Check if simulation mode is enabled
             if not simulation_mode:
@@ -412,7 +412,7 @@ def create_app():
 
     @app.route('/simulation/test_extremes', methods=['POST'])
     def test_temperature_extremes():
-        """Test extreme temperature values (for testing only)"""
+        # Test extreme temperature values (for testing only)
         try:
             # Check if simulation mode is enabled
             if not simulation_mode:
@@ -468,7 +468,7 @@ def create_app():
 
     @app.route('/simulation/status')
     def get_simulation_status():
-        """Get current simulation status"""
+        # Get current simulation status
         return jsonify({
             "simulation_mode": simulation_mode,
             "current_temperatures": simulated_temps,
