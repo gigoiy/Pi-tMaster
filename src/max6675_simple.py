@@ -23,11 +23,11 @@ class MAX6675:
         print(f"Initialized MAX6675 sensor '{sensor_name}' on CS pin {cs_pin}")
     
     def read_temp_c(self):
-        """Read temperature from actual MAX6675 hardware"""
+        # Read temperature from actual MAX6675 hardware
         return self._read_actual_temp()
     
     def _read_actual_temp(self):
-        """Read actual temperature from MAX6675 sensor"""
+        # Read actual temperature from MAX6675 sensor
         GPIO.output(self.cs_pin, GPIO.LOW)
         time.sleep(0.001)  # Wait for conversion
         
@@ -60,7 +60,7 @@ class MAX6675:
             raise e
     
     def test_sensor_connection(self):
-        """Test if sensor is responding properly"""
+        # Test if sensor is responding properly
         try:
             temp = self.read_temp_c()
             print(f"Sensor '{self.sensor_name}' test: {temp:.2f}°C")
@@ -70,7 +70,7 @@ class MAX6675:
             return False
     
     def read_multiple_samples(self, num_samples=5, delay=0.1):
-        """Read multiple samples to check sensor stability"""
+        # Read multiple samples to check sensor stability
         samples = []
         for i in range(num_samples):
             try:
@@ -83,21 +83,21 @@ class MAX6675:
         return samples
     
     def get_calibration_status(self):
-        """Get calibration status for this sensor"""
+        # Get calibration status for this sensor
         return self.calibration_manager.get_calibration_status(self.sensor_name)
     
     def add_calibration_point(self, actual_temp: float, measured_temp: float):
-        """Add a calibration point for this sensor"""
+        # Add a calibration point for this sensor
         self.calibration_manager.add_calibration_point(
             self.sensor_name, actual_temp, measured_temp
         )
         print(f"Added calibration point for {self.sensor_name}: actual={actual_temp}°C, measured={measured_temp}°C")
     
     def clear_calibration(self):
-        """Clear calibration for this sensor"""
+        # Clear calibration for this sensor
         self.calibration_manager.clear_calibration(self.sensor_name)
         print(f"Cleared calibration for {self.sensor_name}")
     
     def cleanup(self):
-        """Clean up GPIO resources"""
+        # Clean up GPIO resources
         GPIO.cleanup(self.cs_pin)

@@ -26,7 +26,7 @@ class CalibrationManager:
         self.load_calibrations()
     
     def load_calibrations(self):
-        """Load calibration data from file"""
+        # Load calibration data from file
         try:
             if os.path.exists(self.calibration_file):
                 with open(self.calibration_file, 'r') as f:
@@ -46,7 +46,7 @@ class CalibrationManager:
             self.calibrations = {}
     
     def save_calibrations(self):
-        """Save calibration data to file"""
+        # Save calibration data to file
         try:
             data = {}
             for sensor_name, calibration in self.calibrations.items():
@@ -65,7 +65,7 @@ class CalibrationManager:
             print(f"Error saving calibrations: {e}")
     
     def add_calibration_point(self, sensor_name: str, actual_temp: float, measured_temp: float):
-        """Add a calibration point for a sensor"""
+        # Add a calibration point for a sensor
         if sensor_name not in self.calibrations:
             self.calibrations[sensor_name] = SensorCalibration(
                 sensor_name=sensor_name,
@@ -91,7 +91,7 @@ class CalibrationManager:
         self.save_calibrations()
     
     def _calculate_calibration(self, sensor_name: str):
-        """Calculate linear calibration curve using 3 points"""
+        # Calculate linear calibration curve using 3 points
         try:
             cal = self.calibrations[sensor_name]
             points = cal.points
@@ -120,7 +120,7 @@ class CalibrationManager:
             print(f"Error calculating calibration for {sensor_name}: {e}")
     
     def apply_calibration(self, sensor_name: str, raw_temp: float) -> float:
-        """Apply calibration to a raw temperature reading"""
+        # Apply calibration to a raw temperature reading
         if (sensor_name in self.calibrations and 
             self.calibrations[sensor_name].is_calibrated):
             cal = self.calibrations[sensor_name]
@@ -129,7 +129,7 @@ class CalibrationManager:
         return raw_temp
     
     def get_calibration_status(self, sensor_name: str) -> Dict:
-        """Get calibration status for a sensor"""
+        # Get calibration status for a sensor
         if sensor_name in self.calibrations:
             cal = self.calibrations[sensor_name]
             return {
@@ -145,7 +145,7 @@ class CalibrationManager:
         return {'is_calibrated': False, 'points_count': 0}
     
     def clear_calibration(self, sensor_name: str):
-        """Clear calibration for a sensor"""
+        # Clear calibration for a sensor
         if sensor_name in self.calibrations:
             del self.calibrations[sensor_name]
             self.save_calibrations()

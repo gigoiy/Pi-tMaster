@@ -10,7 +10,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from max6675_simple import MAX6675
 
 def test_hardware_calibration():
-    """Test calibration with real MAX6675 hardware"""
+    # Test calibration with real MAX6675 hardware
     
     # Test sensor configuration - adjust CS pin as needed
     cs_pin = 8  # Change this to match your test sensor

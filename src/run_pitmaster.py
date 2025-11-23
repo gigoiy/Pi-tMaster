@@ -195,7 +195,7 @@ def create_app():
     # Calibration endpoints
     @app.route('/calibration/status')
     def calibration_status():
-        """Get calibration status for all sensors"""
+        # Get calibration status for all sensors
         status = {}
         for name, sensor in sensors.items():
             if sensor is not None:
@@ -206,7 +206,7 @@ def create_app():
     
     @app.route('/calibration/add_point', methods=['POST'])
     def add_calibration_point():
-        """Add a calibration point for a sensor"""
+        # Add a calibration point for a sensor
         try:
             data = request.get_json()
             sensor_name = data.get('sensor_name')
@@ -228,7 +228,7 @@ def create_app():
     
     @app.route('/calibration/add_point_manual', methods=['POST'])
     def add_calibration_point_manual():
-        """Add a calibration point with manual measured temperature"""
+        # Add a calibration point with manual measured temperature
         try:
             data = request.get_json()
             sensor_name = data.get('sensor_name')
@@ -248,7 +248,7 @@ def create_app():
     
     @app.route('/calibration/clear', methods=['POST'])
     def clear_calibration():
-        """Clear calibration for a sensor"""
+        # Clear calibration for a sensor
         try:
             data = request.get_json()
             sensor_name = data.get('sensor_name')
@@ -263,7 +263,7 @@ def create_app():
 
     @app.route('/sensor/test')
     def test_sensors():
-        """Test all sensors and return their status"""
+        # Test all sensors and return their status
         results = {}
         for name, sensor in sensors.items():
             if sensor is not None:
