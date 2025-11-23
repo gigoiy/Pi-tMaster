@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block title %}Performance Testing - Pi-tMaster{% endblock %}
+
+{% block page_title %}Performance Testing{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 style="text-align: center; margin-bottom: 1rem;">Temperature Simulation Testing</h2>
+    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 1.5rem;">
+        Test JSON response integrity, Flask server limits, and integer overflow risks
+    </p>
+
+    <div style="background: #2a2a2a; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+        <div style="text-align: center; margin-bottom: 0.5rem;">
+            <strong>🔬 Testing Mode:</strong>
+            <span id="simulationStatus" style="color: var(--warning);">Checking...</span>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-secondary); text-align: center;">
+            Type-K Range: -200°C to 1350°C | Absolute Zero: -273.15°C
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Set Individual Sensor Temperature</h3>
+    
+    <div class="form-group">
+        <label for="sensorSelect">Select Sensor:</label>
+        <select id="sensorSelect">
+            <option value="smoker_left">🔥 Smoker Left</option>
+            <option value="smoker_right">🔥 Smoker Right</option>
+            <option value="meat_probe">🥩 Meat Probe</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="individualTemp">Temperature (°C):</label>
+        <input type="number" id="individualTemp" step="0.1" value="25.0" placeholder="Enter temperature">
+    </div>
+
+    <button class="btn info" onclick="setIndividualTemperature()">
+        <span>🎯</span> Set Individual Temperature
+    </button>
+</div>
+
+<div class="card">
+    <h3>Set All Sensors Temperature</h3>
+    
+    <div class="form-group">
+        <label for="allTemp">Temperature for All Sensors (°C):</label>
+        <input type="number" id="allTemp" step="0.1" value="25.0" placeholder="Enter temperature">
+    </div>
+
+    <button class="btn warning" onclick="setAllTemperatures()">
+        <span>🎯</span> Set All Temperatures
+    </button>
+</div>
+
+<div class="card">
+    <h3>Quick Test Presets</h3>
+    
+    <div class="status-grid">
+        <button class="btn" style="margin: 0.25rem; padding: 0.75rem;" onclick="setPresetTemperature(-200)">
+            <span>❄️</span> -200°C
+        </button>
+        <button class="btn" style="margin: 0.25rem; padding: 0.75rem;" onclick="setPresetTemperature(0)">
+            <span>🧊</span> 0°C
+        </button>
+        <button class="btn" style="margin: 0.25rem; padding: 0.75rem;" onclick="setPresetTemperature(25)">
+            <span>🌡️</span> 25°C
+        </button>
+        <button class="btn" style="margin: 0.25rem; padding: 0.75rem;" onclick="setPresetTemperature(100)">
+            <span>♨️</span> 100°C
+        </button>
+        <button class="btn" style="margin: 0.25rem; padding: 0.75rem;" onclick="setPresetTemperature(500)">
+            <span>🔥</span> 500°C
+        </button>
+        <button class="btn" style="margin: 0.25rem; padding: 0.75rem;" onclick="setPresetTemperature(1350)">
+            <span>💥</span> 1350°C
+        </button>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Extreme Value Testing</h3>
+    <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+        Test JSON response integrity with boundary conditions and overflow risks
+    </p>
+
+    <button class="btn danger" onclick="runExtremeTests()">
+        <span>🧪</span> Run Extreme Value Tests
+    </button>
+
+    <div id="testResults" style="display: none; margin-top: 1rem;">
+        <h4>Test Results</h4>
+        <div id="testResultsContent" style="max-height: 300px; overflow-y: auto;"></div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Current Simulation Status</h3>
+    <button class="btn info" onclick="getSimulationStatus()">
+        <span>🔄</span> Refresh Status
+    </button>
+    
+    <div id="simulationData" style="margin-top: 1rem;">
+        <!-- Status will be populated here -->
+    </div>
+</div>
+
+<div class="card">
+    <h3>Testing Notes</h3>
+    <div style="background: #2a2a2a; padding: 1rem; border-radius: 8px;">
+        <div style="margin-bottom: 0.5rem;"><strong>What to Test:</strong></div>
+        <ul style="color: var(--text-secondary); padding-left: 1.5rem; font-size: 0.9rem;">
+            <li>JSON response integrity with extreme values</li>
+            <li>Flask server handling of large/small numbers</li>
+            <li>Integer overflow in temperature calculations</li>
+            <li>Type-K thermocouple range validation</li>
+            <li>Frontend display of extreme temperatures</li>
+            <li>Database/serialization limits</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Check simulation status on page load
+    async function checkSimulationStatus() {
+        try {
+            const response = await fetch('/simulation/status');
+            const data = await response.json();
+            
+            const statusElement = document.getElementById('simulationStatus');
+            if (data.simulation_mode) {
+                statusElement.textContent = 'ACTIVE';
+                statusElement.style.color = 'var(--success)';
+            } else {
+                statusElement.textContent = 'INACTIVE - Using Real Sensors';
+                statusElement.style.color = 'var(--warning)';
+            }
+        } catch (e) {
+            console.error('Error checking simulation status:', e);
+            document.getElementById('simulationStatus').textContent = 'ERROR';
+            document.getElementById('simulationStatus').style.color = 'var(--error)';
+        }
+    }
+
+    // Set individual sensor temperature
+    async function setIndividualTemperature() {
+        const sensor = document.getElementById('sensorSelect').value;
+        const temp = parseFloat(document.getElementById('individualTemp').value);
+        
+        if (isNaN(temp)) {
+            showNotification('Please enter a valid temperature', 'error');
+            return;
+        }
+        
+        try {
+            showNotification(`Setting ${sensor} to ${temp}°C...`, 'info');
+            const response = await fetch('/simulation/set_temperature', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    sensor_name: sensor,
+                    temperature: temp
+                })
+            });
+            const result = await response.json();
+            showNotification(result.message, result.status);
+            
+        } catch (e) {
+            showNotification('Error setting temperature: ' + e.message, 'error');
+        }
+    }
+
+    // Set all sensors to the same temperature
+    async function setAllTemperatures() {
+        const temp = parseFloat(document.getElementById('allTemp').value);
+        
+        if (isNaN(temp)) {
+            showNotification('Please enter a valid temperature', 'error');
+            return;
+        }
+        
+        try {
+            showNotification(`Setting all sensors to ${temp}°C...`, 'info');
+            const response = await fetch('/simulation/set_all', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    temperature: temp
+                })
+            });
+            const result = await response.json();
+            showNotification(result.message, result.status);
+            
+        } catch (e) {
+            showNotification('Error setting temperatures: ' + e.message, 'error');
+        }
+    }
+
+    // Set preset temperature for all sensors
+    async function setPresetTemperature(temp) {
+        try {
+            showNotification(`Setting all sensors to ${temp}°C...`, 'info');
+            const response = await fetch('/simulation/set_all', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    temperature: temp
+                })
+            });
+            const result = await response.json();
+            showNotification(result.message, result.status);
+            
+            // Update the input fields
+            document.getElementById('individualTemp').value = temp;
+            document.getElementById('allTemp').value = temp;
+            
+        } catch (e) {
+            showNotification('Error setting temperature: ' + e.message, 'error');
+        }
+    }
+
+    // Run extreme value tests
+    async function runExtremeTests() {
+        try {
+            showNotification('Running extreme value tests...', 'info');
+            const response = await fetch('/simulation/test_extremes', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            });
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+                displayTestResults(result.results);
+                showNotification(`Completed ${result.results.length} test cases`, 'success');
+            } else {
+                showNotification('Test failed: ' + result.message, 'error');
+            }
+            
+        } catch (e) {
+            showNotification('Error running tests: ' + e.message, 'error');
+        }
+    }
+
+    // Display test results
+    function displayTestResults(results) {
+        const container = document.getElementById('testResultsContent');
+        container.innerHTML = '';
+        
+        results.forEach((test, index) => {
+            const testDiv = document.createElement('div');
+            testDiv.style.background = '#2a2a2a';
+            testDiv.style.padding = '0.75rem';
+            testDiv.style.borderRadius = '6px';
+            testDiv.style.marginBottom = '0.5rem';
+            testDiv.style.borderLeft = `4px solid ${test.status === 'success' ? 'var(--success)' : 'var(--error)'}`;
+            
+            testDiv.innerHTML = `
+                <div style="font-weight: bold; margin-bottom: 0.25rem;">${test.test_case}</div>
+                <div style="font-size: 0.9rem; color: var(--text-secondary);">
+                    Input: ${test.temp_c}°C
+                    ${test.status === 'success' ? 
+                        ` | Output: ${test.json_response}` : 
+                        ` | Error: ${test.error}`
+                    }
+                </div>
+            `;
+            
+            container.appendChild(testDiv);
+        });
+        
+        document.getElementById('testResults').style.display = 'block';
+    }
+
+    // Get simulation status
+    async function getSimulationStatus() {
+        try {
+            const response = await fetch('/simulation/status');
+            const data = await response.json();
+            
+            const container = document.getElementById('simulationData');
+            container.innerHTML = `
+                <div class="status-grid">
+                    <div class="status-item">
+                        <div class="status-label">Smoker Left</div>
+                        <div class="status-value">${data.current_temperatures.smoker_left}°C</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">Smoker Right</div>
+                        <div class="status-value">${data.current_temperatures.smoker_right}°C</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">Meat Probe</div>
+                        <div class="status-value">${data.current_temperatures.meat_probe}°C</div>
+                    </div>
+                </div>
+                <div style="text-align: center; margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem;">
+                    Type-K Range: ${data.type_k_range.min}°C to ${data.type_k_range.max}°C
+                </div>
+            `;
+            
+        } catch (e) {
+            showNotification('Error getting simulation status: ' + e.message, 'error');
+        }
+    }
+
+    // Initialize page
+    checkSimulationStatus();
+    getSimulationStatus();
+</script>
+{% endblock %}

@@ -21,6 +21,14 @@ def create_app():
     sensors = {}
     sensor_status = {}
     
+    # Temporary simulation mode for testing
+    SIMULATION_MODE = True  # Set to True to enable temperature simulation
+    simulated_temps = {
+        "smoker_left": 25.0,
+        "smoker_right": 25.0, 
+        "meat_probe": 25.0
+    }
+    
     print("Initializing MAX6675 sensors...")
     for name, cs_pin in cs_pins.items():
         try:
@@ -42,7 +50,8 @@ def create_app():
         "smoker_right": {"temp_c": 0.0, "temp_f": 0.0, "raw_temp_c": 0.0, "error": None},
         "meat_probe": {"temp_c": 0.0, "temp_f": 0.0, "raw_temp_c": 0.0, "error": None},
         "last_updated": "",
-        "sensor_status": sensor_status
+        "sensor_status": sensor_status,
+        "simulation_mode": SIMULATION_MODE
     }
 
     app = Flask(__name__)
@@ -101,16 +110,25 @@ def create_app():
         while True:
             for name, sensor in sensors.items():
                 try:
-                    if sensor is not None:
-                        raw_temp_c = sensor.read_temp_c()
+                    if SIMULATION_MODE:
+                        # Use simulated temperature for testing
+                        raw_temp_c = simulated_temps[name]
                         temp_c = raw_temp_c
-                        temp_f = temp_c * 9/5 + 32
-                        temperature_data[name]["temp_c"] = round(temp_c, 2)
-                        temperature_data[name]["temp_f"] = round(temp_f, 2)
-                        temperature_data[name]["raw_temp_c"] = round(raw_temp_c, 2)
-                        temperature_data[name]["error"] = None
                     else:
-                        temperature_data[name]["error"] = "Sensor not initialized"
+                        # Read from actual hardware
+                        if sensor is not None:
+                            raw_temp_c = sensor.read_temp_c()
+                            temp_c = raw_temp_c
+                        else:
+                            temperature_data[name]["error"] = "Sensor not initialized"
+                            continue
+                    
+                    temp_f = temp_c * 9/5 + 32
+                    temperature_data[name]["temp_c"] = round(temp_c, 2)
+                    temperature_data[name]["temp_f"] = round(temp_f, 2)
+                    temperature_data[name]["raw_temp_c"] = round(raw_temp_c, 2)
+                    temperature_data[name]["error"] = None
+                    
                 except Exception as e:
                     temperature_data[name]["error"] = str(e)
                     print(f"[ERROR] Reading {name}: {e}")
@@ -133,6 +151,11 @@ def create_app():
     @app.route('/power')
     def power():
         return render_template('power.html')
+
+    # Route for simulation testing page
+    @app.route('/simulation')
+    def simulation():
+        return render_template('simulation.html')
 
     @app.route('/data')
     def get_data():
@@ -207,7 +230,7 @@ def create_app():
     # Calibration endpoints
     @app.route('/calibration/status')
     def calibration_status():
-        # Get calibration status for all sensors
+        """Get calibration status for all sensors"""
         status = {}
         for name, sensor in sensors.items():
             if sensor is not None:
@@ -218,7 +241,7 @@ def create_app():
     
     @app.route('/calibration/add_point', methods=['POST'])
     def add_calibration_point():
-        # Add a calibration point for a sensor
+        """Add a calibration point for a sensor"""
         try:
             data = request.get_json()
             sensor_name = data.get('sensor_name')
@@ -240,7 +263,7 @@ def create_app():
     
     @app.route('/calibration/add_point_manual', methods=['POST'])
     def add_calibration_point_manual():
-        # Add a calibration point with manual measured temperature
+        """Add a calibration point with manual measured temperature"""
         try:
             data = request.get_json()
             sensor_name = data.get('sensor_name')
@@ -260,7 +283,7 @@ def create_app():
     
     @app.route('/calibration/clear', methods=['POST'])
     def clear_calibration():
-        # Clear calibration for a sensor
+        """Clear calibration for a sensor"""
         try:
             data = request.get_json()
             sensor_name = data.get('sensor_name')
@@ -275,7 +298,7 @@ def create_app():
 
     @app.route('/sensor/test')
     def test_sensors():
-        # Test all sensors and return their status
+        """Test all sensors and return their status"""
         results = {}
         for name, sensor in sensors.items():
             if sensor is not None:
@@ -286,6 +309,130 @@ def create_app():
             else:
                 results[name] = {"status": "Not available"}
         return jsonify(results)
+
+    # Simulation endpoints for testing
+    @app.route('/simulation/set_temperature', methods=['POST'])
+    def set_simulated_temperature():
+        """Set simulated temperature for a sensor (for testing only)"""
+        try:
+            data = request.get_json()
+            sensor_name = data.get('sensor_name')
+            temperature = float(data.get('temperature'))
+            
+            if sensor_name in simulated_temps:
+                # Test for integer overflow and range limits
+                if temperature < -273.15:  # Absolute zero
+                    return jsonify({"status": "error", "message": "Temperature below absolute zero"}), 400
+                
+                # Type-K thermocouple range: -200°C to +1350°C
+                if temperature < -200 or temperature > 1350:
+                    return jsonify({
+                        "status": "warning", 
+                        "message": f"Temperature {temperature}°C outside Type-K range (-200°C to +1350°C)"
+                    })
+                
+                simulated_temps[sensor_name] = temperature
+                return jsonify({
+                    "status": "success", 
+                    "message": f"Set {sensor_name} to {temperature}°C"
+                })
+            else:
+                return jsonify({"status": "error", "message": "Invalid sensor name"}), 400
+                
+        except ValueError as e:
+            return jsonify({"status": "error", "message": "Invalid temperature value"}), 400
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 400
+
+    @app.route('/simulation/set_all', methods=['POST'])
+    def set_all_simulated_temperatures():
+        """Set all sensors to the same temperature (for testing only)"""
+        try:
+            data = request.get_json()
+            temperature = float(data.get('temperature'))
+            
+            # Test for integer overflow and range limits
+            if temperature < -273.15:  # Absolute zero
+                return jsonify({"status": "error", "message": "Temperature below absolute zero"}), 400
+            
+            # Type-K thermocouple range: -200°C to +1350°C
+            if temperature < -200 or temperature > 1350:
+                return jsonify({
+                    "status": "warning", 
+                    "message": f"Temperature {temperature}°C outside Type-K range (-200°C to +1350°C)"
+                })
+            
+            for sensor_name in simulated_temps.keys():
+                simulated_temps[sensor_name] = temperature
+                
+            return jsonify({
+                "status": "success", 
+                "message": f"Set all sensors to {temperature}°C"
+            })
+                
+        except ValueError as e:
+            return jsonify({"status": "error", "message": "Invalid temperature value"}), 400
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 400
+
+    @app.route('/simulation/test_extremes', methods=['POST'])
+    def test_temperature_extremes():
+        """Test extreme temperature values (for testing only)"""
+        try:
+            test_cases = [
+                {"name": "Absolute Minimum", "temp": -200.0},
+                {"name": "Freezing", "temp": 0.0},
+                {"name": "Room Temperature", "temp": 25.0},
+                {"name": "Boiling", "temp": 100.0},
+                {"name": "Type-K Maximum", "temp": 1350.0},
+                {"name": "Below Absolute Zero", "temp": -300.0},
+                {"name": "Above Type-K Max", "temp": 1500.0},
+                {"name": "Very Large Number", "temp": 999999.0},
+                {"name": "Very Small Number", "temp": -999999.0}
+            ]
+            
+            results = []
+            for test_case in test_cases:
+                try:
+                    # Test individual sensor setting
+                    simulated_temps["smoker_left"] = test_case["temp"]
+                    temp_c = simulated_temps["smoker_left"]
+                    temp_f = temp_c * 9/5 + 32
+                    
+                    results.append({
+                        "test_case": test_case["name"],
+                        "temp_c": temp_c,
+                        "temp_f": temp_f,
+                        "status": "success",
+                        "json_response": f"C: {temp_c:.2f}, F: {temp_f:.2f}"
+                    })
+                    
+                except Exception as e:
+                    results.append({
+                        "test_case": test_case["name"],
+                        "temp_c": test_case["temp"],
+                        "status": "error",
+                        "error": str(e)
+                    })
+            
+            return jsonify({
+                "status": "success",
+                "results": results,
+                "message": f"Tested {len(results)} extreme temperature cases"
+            })
+                
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 400
+
+    @app.route('/simulation/status')
+    def get_simulation_status():
+        """Get current simulation status"""
+        return jsonify({
+            "simulation_mode": SIMULATION_MODE,
+            "current_temperatures": simulated_temps,
+            "type_k_range": {"min": -200, "max": 1350},
+            "absolute_zero": -273.15
+        })
 
     # Start sensor reading thread
     sensor_thread = threading.Thread(target=read_sensors_loop, daemon=True)
