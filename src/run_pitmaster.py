@@ -5,28 +5,44 @@ import os
 import subprocess
 import time
 import threading
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, request
 import RPi.GPIO as GPIO
 from max6675_simple import MAX6675
 
 def create_app():
     # Define CS pins (BCM numbering)
     cs_pins = {
-        "smoker_left": 8,    # GPIO8 (BCM)
-        "smoker_right": 7,   # GPIO7 (BCM) 
-        "meat_probe": 16     # GPIO16 (BCM)
+        "smoker_left": 8,    # GPIO8 (BCM) - Pin 24
+        "smoker_right": 7,   # GPIO7 (BCM) - Pin 26
+        "meat_probe": 16     # GPIO16 (BCM) - Pin 36
     }
 
-    # Create sensor objects
+    # Create sensor objects for real hardware
     sensors = {}
+    sensor_status = {}
+    
+    print("Initializing MAX6675 sensors...")
     for name, cs_pin in cs_pins.items():
-        sensors[name] = MAX6675(cs_pin)
+        try:
+            sensors[name] = MAX6675(cs_pin, sensor_name=name)
+            # Test sensor connection
+            if sensors[name].test_sensor_connection():
+                sensor_status[name] = "Connected"
+                print(f"✓ {name} initialized successfully")
+            else:
+                sensor_status[name] = "Connection Error"
+                print(f"✗ {name} failed to initialize")
+        except Exception as e:
+            sensors[name] = None
+            sensor_status[name] = f"Error: {str(e)}"
+            print(f"✗ Failed to initialize {name}: {e}")
 
     temperature_data = {
-        "smoker_left": {"temp_c": 0.0, "temp_f": 0.0},
-        "smoker_right": {"temp_c": 0.0, "temp_f": 0.0},
-        "meat_probe": {"temp_c": 0.0, "temp_f": 0.0},
-        "last_updated": ""
+        "smoker_left": {"temp_c": 0.0, "temp_f": 0.0, "raw_temp_c": 0.0, "error": None},
+        "smoker_right": {"temp_c": 0.0, "temp_f": 0.0, "raw_temp_c": 0.0, "error": None},
+        "meat_probe": {"temp_c": 0.0, "temp_f": 0.0, "raw_temp_c": 0.0, "error": None},
+        "last_updated": "",
+        "sensor_status": sensor_status
     }
 
     app = Flask(__name__)
@@ -85,14 +101,22 @@ def create_app():
         while True:
             for name, sensor in sensors.items():
                 try:
-                    temp_c = sensor.read_temp_c()
-                    temp_f = temp_c * 9/5 + 32
-                    temperature_data[name]["temp_c"] = round(temp_c, 2)
-                    temperature_data[name]["temp_f"] = round(temp_f, 2)
+                    if sensor is not None:
+                        raw_temp_c = sensor.read_temp_c()
+                        temp_c = raw_temp_c
+                        temp_f = temp_c * 9/5 + 32
+                        temperature_data[name]["temp_c"] = round(temp_c, 2)
+                        temperature_data[name]["temp_f"] = round(temp_f, 2)
+                        temperature_data[name]["raw_temp_c"] = round(raw_temp_c, 2)
+                        temperature_data[name]["error"] = None
+                    else:
+                        temperature_data[name]["error"] = "Sensor not initialized"
                 except Exception as e:
-                    print(f"[WARN] Error reading {name}: {e}")
+                    temperature_data[name]["error"] = str(e)
+                    print(f"[ERROR] Reading {name}: {e}")
+            
             temperature_data["last_updated"] = time.strftime("%Y-%m-%d %H:%M:%S")
-            time.sleep(3)
+            time.sleep(3)  # Read sensors every 3 seconds
 
     @app.route('/')
     def index():
@@ -123,7 +147,7 @@ def create_app():
                 "status": "Running"
             })
         except Exception as e:
-            print(f"ERROR in powerstatus: {str(e)}")  # Debug logging
+            print(f"ERROR in powerstatus: {str(e)}")
             return jsonify({"error": str(e)}), 500
         
     @app.route('/enable-low-power')
@@ -168,6 +192,90 @@ def create_app():
         except Exception as e:
             return f"Error: {str(e)}"
 
+    # Calibration endpoints
+    @app.route('/calibration/status')
+    def calibration_status():
+        """Get calibration status for all sensors"""
+        status = {}
+        for name, sensor in sensors.items():
+            if sensor is not None:
+                status[name] = sensor.get_calibration_status()
+            else:
+                status[name] = {"error": "Sensor not available"}
+        return jsonify(status)
+    
+    @app.route('/calibration/add_point', methods=['POST'])
+    def add_calibration_point():
+        """Add a calibration point for a sensor"""
+        try:
+            data = request.get_json()
+            sensor_name = data.get('sensor_name')
+            actual_temp = float(data.get('actual_temp'))
+            
+            if sensor_name in sensors and sensors[sensor_name] is not None:
+                # Use current sensor reading as measured temperature
+                measured_temp = sensors[sensor_name].read_temp_c()
+                
+                sensors[sensor_name].add_calibration_point(actual_temp, measured_temp)
+                return jsonify({
+                    "status": "success", 
+                    "message": f"Calibration point added: actual={actual_temp}°C, measured={measured_temp:.2f}°C"
+                })
+            else:
+                return jsonify({"status": "error", "message": "Invalid sensor name or sensor not available"}), 400
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 400
+    
+    @app.route('/calibration/add_point_manual', methods=['POST'])
+    def add_calibration_point_manual():
+        """Add a calibration point with manual measured temperature"""
+        try:
+            data = request.get_json()
+            sensor_name = data.get('sensor_name')
+            actual_temp = float(data.get('actual_temp'))
+            measured_temp = float(data.get('measured_temp'))
+            
+            if sensor_name in sensors and sensors[sensor_name] is not None:
+                sensors[sensor_name].add_calibration_point(actual_temp, measured_temp)
+                return jsonify({
+                    "status": "success", 
+                    "message": f"Calibration point added: actual={actual_temp}°C, measured={measured_temp}°C"
+                })
+            else:
+                return jsonify({"status": "error", "message": "Invalid sensor name or sensor not available"}), 400
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 400
+    
+    @app.route('/calibration/clear', methods=['POST'])
+    def clear_calibration():
+        """Clear calibration for a sensor"""
+        try:
+            data = request.get_json()
+            sensor_name = data.get('sensor_name')
+            
+            if sensor_name in sensors and sensors[sensor_name] is not None:
+                sensors[sensor_name].clear_calibration()
+                return jsonify({"status": "success", "message": "Calibration cleared"})
+            else:
+                return jsonify({"status": "error", "message": "Invalid sensor name or sensor not available"}), 400
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 400
+
+    @app.route('/sensor/test')
+    def test_sensors():
+        """Test all sensors and return their status"""
+        results = {}
+        for name, sensor in sensors.items():
+            if sensor is not None:
+                results[name] = {
+                    "status": "Testing...",
+                    "samples": sensor.read_multiple_samples(3, 0.5)
+                }
+            else:
+                results[name] = {"status": "Not available"}
+        return jsonify(results)
+
+    # Start sensor reading thread
     sensor_thread = threading.Thread(target=read_sensors_loop, daemon=True)
     sensor_thread.start()
     

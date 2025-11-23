@@ -29,9 +29,19 @@
             box-shadow: 0 0 10px rgba(240, 90, 40, 0.5);
         }
 
+        .sensor.error {
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+        }
+
         .temp {
             font-size: 3em;
             margin: 0.3em 0;
+        }
+
+        .error-message {
+            color: #ff4444;
+            font-size: 0.9em;
+            margin: 0.5em 0;
         }
 
         .timestamp {
@@ -41,8 +51,11 @@
         }
 
         .controls {
+            background: #1e1e1e;
+            border-radius: 12px;
             margin: 2em auto;
-            max-width: 300px;
+            padding: 1em;
+            max-width: 400px;
         }
 
         .control-btn {
@@ -76,6 +89,14 @@
 
         .control-btn.success:hover {
             background: #218838;
+        }
+
+        .control-btn.info {
+            background: #17a2b8;
+        }
+
+        .control-btn.info:hover {
+            background: #138496;
         }
 
         .power-status {
@@ -127,6 +148,45 @@
             background: #5c2a2a;
             color: #f44336;
         }
+
+        .notification.info {
+            background: #1a3c5a;
+            color: #64b5f6;
+        }
+
+        .form-group {
+            margin: 1em 0;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5em;
+            color: #aaa;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #444;
+            background: #2a2a2a;
+            color: white;
+            box-sizing: border-box;
+        }
+
+        .calibration-points {
+            margin-top: 1em;
+            text-align: left;
+        }
+
+        .point {
+            background: #2a2a2a;
+            padding: 0.5em;
+            margin: 0.5em 0;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
     </style>
 </head>
 
@@ -136,31 +196,35 @@
     <div id="smoker_left" class="sensor">
         <h2>Smoker Left</h2>
         <div class="temp" id="smoker_left_temp">-- °F</div>
+        <div class="error-message" id="smoker_left_error"></div>
     </div>
 
     <div id="smoker_right" class="sensor">
         <h2>Smoker Right</h2>
         <div class="temp" id="smoker_right_temp">-- °F</div>
+        <div class="error-message" id="smoker_right_error"></div>
     </div>
 
     <div id="meat_probe" class="sensor">
         <h2>Meat Probe</h2>
         <div class="temp" id="meat_probe_temp">-- °F</div>
+        <div class="error-message" id="meat_probe_error"></div>
     </div>
 
     <div class="timestamp" id="timestamp">Last Updated: --</div>
 
-    <!-- Power Status Section -->
+    <!-- System Controls Section -->
     <div class="controls">
-        <h3>System Controls</h3>
+        <h3>⚙️ System Controls</h3>
 
         <!-- Notification Area -->
         <div id="notification" class="notification"></div>
 
         <!-- Control Buttons -->
-        <button class="control-btn" onclick="getPowerStatus()">📊 Check Power Status</button>
+        <button class="control-btn info" onclick="getPowerStatus()">📊 Check Power Status</button>
         <button class="control-btn success" onclick="enableLowPower()">🔋 Enable Low Power</button>
         <button class="control-btn" onclick="enableFullPower()">🚀 Enable Full Power</button>
+        <button class="control-btn info" onclick="testSensors()">🔍 Test Sensors</button>
         <button class="control-btn danger" onclick="shutdownSystem()">⏻ Shutdown System</button>
         <button class="control-btn danger" onclick="rebootSystem()">🔄 Reboot System</button>
     </div>
@@ -193,6 +257,34 @@
         </div>
     </div>
 
+    <!-- Calibration Controls Section -->
+    <div class="controls">
+        <h3>🔧 Calibration Controls</h3>
+        
+        <div class="form-group">
+            <label for="calibrationSensor">Sensor:</label>
+            <select id="calibrationSensor">
+                <option value="smoker_left">Smoker Left</option>
+                <option value="smoker_right">Smoker Right</option>
+                <option value="meat_probe">Meat Probe</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="actualTemp">Actual Known Temperature (°C):</label>
+            <input type="number" id="actualTemp" step="0.1" placeholder="Enter known reference temperature">
+        </div>
+        
+        <button class="control-btn success" onclick="addCalibrationPoint()">➕ Add Calibration Point</button>
+        <button class="control-btn info" onclick="getCalibrationStatus()">📊 Check Calibration Status</button>
+        <button class="control-btn danger" onclick="clearCalibration()">🗑️ Clear Calibration</button>
+        
+        <div id="calibrationStatus" class="power-status" style="display: none; margin-top: 1em;">
+            <h4>Calibration Status</h4>
+            <div id="calibrationDetails"></div>
+        </div>
+    </div>
+
     <script>
         // Temperature update function
         async function updateTemps() {
@@ -200,9 +292,24 @@
                 const res = await fetch('/data');
                 const json = await res.json();
 
-                document.getElementById('smoker_left_temp').innerText = json.smoker_left.temp_f + " °F";
-                document.getElementById('smoker_right_temp').innerText = json.smoker_right.temp_f + " °F";
-                document.getElementById('meat_probe_temp').innerText = json.meat_probe.temp_f + " °F";
+                // Update temperatures and errors for each sensor
+                const sensors = ['smoker_left', 'smoker_right', 'meat_probe'];
+                sensors.forEach(sensor => {
+                    const tempElement = document.getElementById(`${sensor}_temp`);
+                    const errorElement = document.getElementById(`${sensor}_error`);
+                    const sensorElement = document.getElementById(sensor);
+                    
+                    if (json[sensor].error) {
+                        tempElement.innerText = "ERROR";
+                        errorElement.innerText = json[sensor].error;
+                        sensorElement.classList.add('error');
+                    } else {
+                        tempElement.innerText = json[sensor].temp_f + " °F";
+                        errorElement.innerText = "";
+                        sensorElement.classList.remove('error');
+                    }
+                });
+
                 document.getElementById('timestamp').innerText = "Last Updated: " + json.last_updated;
             } catch (e) {
                 console.error("Error fetching data:", e);
@@ -279,11 +386,11 @@
         // Enable low power mode
         async function enableLowPower() {
             try {
-                showNotification('Enabling low power mode...', 'success');
+                showNotification('Enabling low power mode...', 'info');
                 const res = await fetch('/enable-low-power');
                 const result = await res.text();
                 showNotification('Low power mode enabled successfully');
-                setTimeout(getPowerStatus, 2000); // Wait 2 seconds then refresh
+                setTimeout(getPowerStatus, 2000);
             } catch (e) {
                 console.error("Error enabling low power:", e);
                 showNotification('Error enabling low power mode', 'error');
@@ -293,14 +400,32 @@
         // Enable full power mode
         async function enableFullPower() {
             try {
-                showNotification('Enabling full power mode...', 'success');
+                showNotification('Enabling full power mode...', 'info');
                 const res = await fetch('/enable-full-power');
                 const result = await res.text();
                 showNotification('Full power mode enabled successfully');
-                setTimeout(getPowerStatus, 2000); // Wait 2 seconds then refresh
+                setTimeout(getPowerStatus, 2000);
             } catch (e) {
                 console.error("Error enabling full power:", e);
                 showNotification('Error enabling full power mode', 'error');
+            }
+        }
+
+        // Test sensors
+        async function testSensors() {
+            try {
+                showNotification('Testing sensors...', 'info');
+                const res = await fetch('/sensor/test');
+                const results = await res.json();
+                
+                let message = "Sensor Test Results:\n";
+                for (const [sensor, data] of Object.entries(results)) {
+                    message += `${sensor}: ${JSON.stringify(data.samples)}\n`;
+                }
+                
+                showNotification(message, 'info');
+            } catch (e) {
+                showNotification('Error testing sensors: ' + e.message, 'error');
             }
         }
 
@@ -338,6 +463,124 @@
             }
         }
 
+        // Calibration functions
+        async function addCalibrationPoint() {
+            const sensor = document.getElementById('calibrationSensor').value;
+            const actualTemp = parseFloat(document.getElementById('actualTemp').value);
+            
+            if (isNaN(actualTemp)) {
+                showNotification('Please enter the actual known temperature', 'error');
+                return;
+            }
+            
+            try {
+                showNotification('Adding calibration point...', 'info');
+                const response = await fetch('/calibration/add_point', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        sensor_name: sensor,
+                        actual_temp: actualTemp
+                    })
+                });
+                const result = await response.json();
+                showNotification(result.message, result.status);
+                
+                // Clear input
+                document.getElementById('actualTemp').value = '';
+                
+                // Refresh calibration status
+                setTimeout(getCalibrationStatus, 1000);
+                
+            } catch (e) {
+                showNotification('Error adding calibration point: ' + e.message, 'error');
+            }
+        }
+        
+        async function getCalibrationStatus() {
+            const sensor = document.getElementById('calibrationSensor').value;
+            
+            try {
+                const response = await fetch('/calibration/status');
+                const data = await response.json();
+                const status = data[sensor];
+                
+                if (status.error) {
+                    throw new Error(status.error);
+                }
+                
+                const details = document.getElementById('calibrationDetails');
+                let pointsHtml = '';
+                
+                if (status.points && status.points.length > 0) {
+                    pointsHtml = '<div class="calibration-points"><strong>Calibration Points:</strong>';
+                    status.points.forEach(point => {
+                        const date = new Date(point.timestamp * 1000).toLocaleString();
+                        pointsHtml += `
+                            <div class="point">
+                                Actual: ${point.actual_temp}°C, 
+                                Measured: ${point.measured_temp}°C<br>
+                                <small>${date}</small>
+                            </div>
+                        `;
+                    });
+                    pointsHtml += '</div>';
+                }
+                
+                details.innerHTML = `
+                    <div class="status-item">
+                        <span class="status-label">Calibrated:</span>
+                        <span class="status-value ${status.is_calibrated ? 'success' : 'error'}">
+                            ${status.is_calibrated ? 'YES' : 'NO'}
+                        </span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Points:</span>
+                        <span class="status-value">${status.points_count}/3</span>
+                    </div>
+                    ${status.is_calibrated ? `
+                    <div class="status-item">
+                        <span class="status-label">Slope:</span>
+                        <span class="status-value">${status.slope.toFixed(4)}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Intercept:</span>
+                        <span class="status-value">${status.intercept.toFixed(4)}°C</span>
+                    </div>
+                    ` : ''}
+                    ${pointsHtml}
+                `;
+                
+                document.getElementById('calibrationStatus').style.display = 'block';
+                
+            } catch (e) {
+                showNotification('Error getting calibration status: ' + e.message, 'error');
+            }
+        }
+        
+        async function clearCalibration() {
+            const sensor = document.getElementById('calibrationSensor').value;
+            const confirmed = confirm(`Clear calibration for ${sensor}?`);
+            
+            if (confirmed) {
+                try {
+                    const response = await fetch('/calibration/clear', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({sensor_name: sensor})
+                    });
+                    const result = await response.json();
+                    showNotification(result.message, result.status);
+                    
+                    // Hide status display
+                    document.getElementById('calibrationStatus').style.display = 'none';
+                    
+                } catch (e) {
+                    showNotification('Error clearing calibration: ' + e.message, 'error');
+                }
+            }
+        }
+        
         // Update temperatures every 3 seconds
         setInterval(updateTemps, 3000);
         updateTemps();
