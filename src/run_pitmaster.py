@@ -321,6 +321,11 @@ def create_app():
             
             global simulation_mode
             simulation_mode = bool(mode)
+
+            if simulation_mode == False:
+                simulation_mode = True
+            else:
+                simulation_mode = False
             
             status = "enabled" if simulation_mode else "disabled"
             return jsonify({
