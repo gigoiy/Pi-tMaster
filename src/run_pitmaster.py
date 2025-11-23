@@ -21,8 +21,8 @@ def create_app():
     sensors = {}
     sensor_status = {}
     
-    # Temporary simulation mode for testing
-    SIMULATION_MODE = True  # Set to True to enable temperature simulation
+    # Simulation mode controlled via GUI - default to False (real hardware)
+    simulation_mode = False
     simulated_temps = {
         "smoker_left": 25.0,
         "smoker_right": 25.0, 
@@ -51,7 +51,7 @@ def create_app():
         "meat_probe": {"temp_c": 0.0, "temp_f": 0.0, "raw_temp_c": 0.0, "error": None},
         "last_updated": "",
         "sensor_status": sensor_status,
-        "simulation_mode": SIMULATION_MODE
+        "simulation_mode": simulation_mode
     }
 
     app = Flask(__name__)
@@ -110,7 +110,7 @@ def create_app():
         while True:
             for name, sensor in sensors.items():
                 try:
-                    if SIMULATION_MODE:
+                    if simulation_mode:
                         # Use simulated temperature for testing
                         raw_temp_c = simulated_temps[name]
                         temp_c = raw_temp_c
@@ -134,6 +134,7 @@ def create_app():
                     print(f"[ERROR] Reading {name}: {e}")
             
             temperature_data["last_updated"] = time.strftime("%Y-%m-%d %H:%M:%S")
+            temperature_data["simulation_mode"] = simulation_mode
             time.sleep(3)  # Read sensors every 3 seconds
 
     # Route for temperature monitoring page
@@ -311,10 +312,37 @@ def create_app():
         return jsonify(results)
 
     # Simulation endpoints for testing
+    @app.route('/simulation/set_mode', methods=['POST'])
+    def set_simulation_mode():
+        """Enable or disable simulation mode"""
+        try:
+            data = request.get_json()
+            mode = data.get('enabled', False)
+            
+            global simulation_mode
+            simulation_mode = bool(mode)
+            
+            status = "enabled" if simulation_mode else "disabled"
+            return jsonify({
+                "status": "success", 
+                "message": f"Simulation mode {status}",
+                "simulation_mode": simulation_mode
+            })
+                
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 400
+
     @app.route('/simulation/set_temperature', methods=['POST'])
     def set_simulated_temperature():
         """Set simulated temperature for a sensor (for testing only)"""
         try:
+            # Check if simulation mode is enabled
+            if not simulation_mode:
+                return jsonify({
+                    "status": "error", 
+                    "message": "Simulation mode is disabled. Enable it first to set simulated temperatures."
+                }), 400
+                
             data = request.get_json()
             sensor_name = data.get('sensor_name')
             temperature = float(data.get('temperature'))
@@ -348,6 +376,13 @@ def create_app():
     def set_all_simulated_temperatures():
         """Set all sensors to the same temperature (for testing only)"""
         try:
+            # Check if simulation mode is enabled
+            if not simulation_mode:
+                return jsonify({
+                    "status": "error", 
+                    "message": "Simulation mode is disabled. Enable it first to set simulated temperatures."
+                }), 400
+                
             data = request.get_json()
             temperature = float(data.get('temperature'))
             
@@ -379,6 +414,13 @@ def create_app():
     def test_temperature_extremes():
         """Test extreme temperature values (for testing only)"""
         try:
+            # Check if simulation mode is enabled
+            if not simulation_mode:
+                return jsonify({
+                    "status": "error", 
+                    "message": "Simulation mode is disabled. Enable it first to run extreme tests."
+                }), 400
+                
             test_cases = [
                 {"name": "Absolute Minimum", "temp": -200.0},
                 {"name": "Freezing", "temp": 0.0},
@@ -428,7 +470,7 @@ def create_app():
     def get_simulation_status():
         """Get current simulation status"""
         return jsonify({
-            "simulation_mode": SIMULATION_MODE,
+            "simulation_mode": simulation_mode,
             "current_temperatures": simulated_temps,
             "type_k_range": {"min": -200, "max": 1350},
             "absolute_zero": -273.15

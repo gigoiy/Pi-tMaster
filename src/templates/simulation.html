@@ -23,6 +23,24 @@
 </div>
 
 <div class="card">
+    <h3>Simulation Mode Control</h3>
+    
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+        <label for="simulationToggle" style="margin: 0; flex: 1;">
+            <strong>Enable Simulation Mode:</strong>
+        </label>
+        <label class="switch">
+            <input type="checkbox" id="simulationToggle" onchange="toggleSimulationMode()">
+            <span class="slider"></span>
+        </label>
+    </div>
+    
+    <div id="simulationWarning" style="background: #5c2a2a; padding: 0.75rem; border-radius: 6px; display: none;">
+        <strong>⚠️ Warning:</strong> Simulation mode overrides real sensor data. Use for testing only.
+    </div>
+</div>
+
+<div class="card simulation-controls" id="simulationControls" style="opacity: 0.5; pointer-events: none;">
     <h3>Set Individual Sensor Temperature</h3>
     
     <div class="form-group">
@@ -44,7 +62,7 @@
     </button>
 </div>
 
-<div class="card">
+<div class="card simulation-controls" id="bulkControls" style="opacity: 0.5; pointer-events: none;">
     <h3>Set All Sensors Temperature</h3>
     
     <div class="form-group">
@@ -57,7 +75,7 @@
     </button>
 </div>
 
-<div class="card">
+<div class="card simulation-controls" id="presetControls" style="opacity: 0.5; pointer-events: none;">
     <h3>Quick Test Presets</h3>
     
     <div class="status-grid">
@@ -82,7 +100,7 @@
     </div>
 </div>
 
-<div class="card">
+<div class="card simulation-controls" id="testControls" style="opacity: 0.5; pointer-events: none;">
     <h3>Extreme Value Testing</h3>
     <p style="color: var(--text-secondary); margin-bottom: 1rem;">
         Test JSON response integrity with boundary conditions and overflow risks
@@ -123,6 +141,65 @@
         </ul>
     </div>
 </div>
+
+<style>
+    /* Toggle switch styles */
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 60px;
+        height: 34px;
+    }
+
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 34px;
+    }
+
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 26px;
+        width: 26px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+    }
+
+    input:checked + .slider {
+        background-color: var(--primary-color);
+    }
+
+    input:checked + .slider:before {
+        transform: translateX(26px);
+    }
+
+    /* Control states */
+    .simulation-controls.enabled {
+        opacity: 1 !important;
+        pointer-events: all !important;
+    }
+    
+    .simulation-controls.disabled {
+        opacity: 0.5 !important;
+        pointer-events: none !important;
+    }
+</style>
 {% endblock %}
 
 {% block extra_js %}
@@ -134,18 +211,78 @@
             const data = await response.json();
             
             const statusElement = document.getElementById('simulationStatus');
+            const toggle = document.getElementById('simulationToggle');
+            
             if (data.simulation_mode) {
                 statusElement.textContent = 'ACTIVE';
                 statusElement.style.color = 'var(--success)';
+                toggle.checked = true;
+                enableSimulationControls(true);
             } else {
                 statusElement.textContent = 'INACTIVE - Using Real Sensors';
                 statusElement.style.color = 'var(--warning)';
+                toggle.checked = false;
+                enableSimulationControls(false);
             }
         } catch (e) {
             console.error('Error checking simulation status:', e);
             document.getElementById('simulationStatus').textContent = 'ERROR';
             document.getElementById('simulationStatus').style.color = 'var(--error)';
         }
+    }
+
+    // Toggle simulation mode
+    async function toggleSimulationMode() {
+        const toggle = document.getElementById('simulationToggle');
+        const enabled = toggle.checked;
+        
+        try {
+            showNotification(`${enabled ? 'Enabling' : 'Disabling'} simulation mode...`, 'info');
+            const response = await fetch('/simulation/set_mode', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    enabled: enabled
+                })
+            });
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+                showNotification(result.message, 'success');
+                checkSimulationStatus(); // Refresh status display
+                
+                // Show/hide warning
+                const warning = document.getElementById('simulationWarning');
+                if (enabled) {
+                    warning.style.display = 'block';
+                } else {
+                    warning.style.display = 'none';
+                }
+            } else {
+                showNotification('Error: ' + result.message, 'error');
+                // Revert toggle if failed
+                toggle.checked = !enabled;
+            }
+            
+        } catch (e) {
+            showNotification('Error toggling simulation mode: ' + e.message, 'error');
+            // Revert toggle if error
+            toggle.checked = !enabled;
+        }
+    }
+
+    // Enable/disable simulation controls
+    function enableSimulationControls(enabled) {
+        const controls = document.querySelectorAll('.simulation-controls');
+        controls.forEach(control => {
+            if (enabled) {
+                control.classList.remove('disabled');
+                control.classList.add('enabled');
+            } else {
+                control.classList.remove('enabled');
+                control.classList.add('disabled');
+            }
+        });
     }
 
     // Set individual sensor temperature
