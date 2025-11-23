@@ -207,11 +207,11 @@
     // Check simulation status on page load
     async function checkSimulationStatus() {
         try {
-            response = await fetch('/simulation/status');
-            data = await response.json();
+            const response = await fetch('/simulation/status');
+            const data = await response.json();
             
-            statusElement = document.getElementById('simulationStatus');
-            toggle = document.getElementById('simulationToggle');
+            const statusElement = document.getElementById('simulationStatus');
+            const toggle = document.getElementById('simulationToggle');
             
             if (data.simulation_mode) {
                 statusElement.textContent = 'ACTIVE';
@@ -233,19 +233,19 @@
 
     // Toggle simulation mode
     async function toggleSimulationMode() {
-        toggle = document.getElementById('simulationToggle');
-        enabled = toggle.checked;
+        const toggle = document.getElementById('simulationToggle');
+        const enabled = toggle.checked;
         
         try {
             showNotification(`${enabled ? 'Enabling' : 'Disabling'} simulation mode...`, 'info');
-            response = await fetch('/simulation/set_mode', {
+            const response = await fetch('/simulation/set_mode', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     enabled: enabled
                 })
             });
-            result = await response.json();
+            const result = await response.json();
             
             if (result.status === 'success') {
                 showNotification(result.message, 'success');
@@ -273,9 +273,9 @@
 
     // Enable/disable simulation controls
     function enableSimulationControls(enabled) {
-        controls = document.querySelectorAll('.simulation-controls');
+        const controls = document.querySelectorAll('.simulation-controls');
         controls.forEach(control => {
-            if (enabled) {
+            if (enabled == false) {
                 control.classList.remove('disabled');
                 control.classList.add('enabled');
             } else {
