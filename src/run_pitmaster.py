@@ -9,7 +9,18 @@ from flask import Flask, jsonify, render_template, request
 import RPi.GPIO as GPIO
 from max6675_simple import MAX6675
 
+# Simulation mode controlled via GUI - default to False (real hardware)
+simulation_mode = False
+simulated_temps = {
+    "smoker_left": 25.0,
+    "smoker_right": 25.0, 
+    "meat_probe": 25.0
+}
+
 def create_app():
+    # Global declaration of simulation_mode
+    global simulation_mode, simulated_temps
+
     # Define CS pins (BCM numbering)
     cs_pins = {
         "smoker_left": 8,    # GPIO8 (BCM) - Pin 24
@@ -20,14 +31,6 @@ def create_app():
     # Create sensor objects for real hardware
     sensors = {}
     sensor_status = {}
-    
-    # Simulation mode controlled via GUI - default to False (real hardware)
-    simulation_mode = False
-    simulated_temps = {
-        "smoker_left": 25.0,
-        "smoker_right": 25.0, 
-        "meat_probe": 25.0
-    }
     
     print("Initializing MAX6675 sensors...")
     for name, cs_pin in cs_pins.items():
@@ -107,6 +110,7 @@ def create_app():
             raise Exception(f"Failed to set CPU settings: {str(e)}")
 
     def read_sensors_loop():
+        global simulation_mode, simulated_temps
         while True:
             for name, sensor in sensors.items():
                 try:
@@ -321,11 +325,6 @@ def create_app():
             
             global simulation_mode
             simulation_mode = bool(mode)
-
-            if simulation_mode == False:
-                simulation_mode = True
-            else:
-                simulation_mode = False
             
             status = "enabled" if simulation_mode else "disabled"
             return jsonify({
@@ -339,6 +338,8 @@ def create_app():
 
     @app.route('/simulation/set_temperature', methods=['POST'])
     def set_simulated_temperature():
+        global simulation_mode
+
         # Set simulated temperature for a sensor (for testing only)
         try:
             # Check if simulation mode is enabled
@@ -379,6 +380,8 @@ def create_app():
 
     @app.route('/simulation/set_all', methods=['POST'])
     def set_all_simulated_temperatures():
+        global simulation_mode
+        
         # Set all sensors to the same temperature (for testing only)
         try:
             # Check if simulation mode is enabled
@@ -417,6 +420,8 @@ def create_app():
 
     @app.route('/simulation/test_extremes', methods=['POST'])
     def test_temperature_extremes():
+        global simulation_mode
+
         # Test extreme temperature values (for testing only)
         try:
             # Check if simulation mode is enabled
