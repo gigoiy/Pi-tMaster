@@ -36,17 +36,27 @@ Connect all three MAX6675 boards as follows:
 ## Program Architecture
 ![Architecture Diagram](assets/Pi-tmasterArchitectureDiagram.png)
 
+## Performance Notes
+
+**Hardware Used**
+
+- **Computer:** Raspberry Pi 4B
+- **Thermocouples:** 2x Generic K Type Probes, 1x Sharp-Pointed Stainless Steel K Type Probe
+- **Modules:** 3x MAX6675 Breakout Modules
+
+### Route Stress Testing  
+
+|**Route**       |**Max Requests/Second**|**Max Request Latency (Seconds)**|**Max CPU Usage**|
+|:---------------|:----------------------|--------------------------------:|----------------:|
+|**/**           |61.03                  |16.712103                        |118.5 %          |
+|**/temperature**|60.21                  |16.941499                        |117.8 %          |
+|**/data**       |60.73                  |16.796365                        |117.5 %          |  
+
 ## Accessing the Web Interface
 
 After installation, open a web browser and go to:
 - `http://[your-pi-ip]:8080`
 - or `http://pitmaster.local:8080`
-
-![GUI Demo](assets/GUIDemo.gif)
-
-![Power Management Demo](assets/PowerManagementDemo.gif)
-
-![Reboot Demo](assets/RebootDemo.gif)
 
 ## Management Commands
 
