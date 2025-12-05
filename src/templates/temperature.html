@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Temperature - Pi-tMaster{% endblock %}
+
+{% block page_title %}Temperature Monitoring{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 style="text-align: center; margin-bottom: 1rem;">Real-time Temperatures</h2>
+    
+    <div class="sensor-card" id="smoker_left_card">
+        <div class="sensor-name">🔥 Smoker Left</div>
+        <div class="temp-display" id="smoker_left_temp">-- °F</div>
+        <div class="sensor-error" id="smoker_left_error"></div>
+    </div>
+
+    <div class="sensor-card" id="smoker_right_card">
+        <div class="sensor-name">🔥 Smoker Right</div>
+        <div class="temp-display" id="smoker_right_temp">-- °F</div>
+        <div class="sensor-error" id="smoker_right_error"></div>
+    </div>
+
+    <div class="sensor-card" id="meat_probe_card">
+        <div class="sensor-name">🥩 Meat Probe</div>
+        <div class="temp-display" id="meat_probe_temp">-- °F</div>
+        <div class="sensor-error" id="meat_probe_error"></div>
+    </div>
+
+    <div style="text-align: center; color: var(--text-secondary); margin-top: 1rem;">
+        <div id="timestamp">Last Updated: --</div>
+    </div>
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: 1rem;">Sensor Status</h3>
+    <div class="status-grid">
+        <div class="status-item">
+            <div class="status-label">Smoker Left</div>
+            <div class="status-value" id="status_smoker_left">--</div>
+        </div>
+        <div class="status-item">
+            <div class="status-label">Smoker Right</div>
+            <div class="status-value" id="status_smoker_right">--</div>
+        </div>
+        <div class="status-item">
+            <div class="status-label">Meat Probe</div>
+            <div class="status-value" id="status_meat_probe">--</div>
+        </div>
+        <div class="status-item">
+            <div class="status-label">Response Time</div>
+            <div class="status-value" id="response_time">--</div>
+        </div>
+    </div>
+    
+    <button class="btn info" onclick="testSensors()">
+        <span>🔍</span> Test All Sensors
+    </button>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Temperature update function
+    async function updateTemps() {
+        try {
+            const startTime = performance.now();
+            const res = await fetch('/data');
+            const json = await res.json();
+            const responseTime = ((performance.now() - startTime)).toFixed(1) + ' ms';
+
+            // Update temperatures and errors for each sensor
+            const sensors = ['smoker_left', 'smoker_right', 'meat_probe'];
+            sensors.forEach(sensor => {
+                const tempElement = document.getElementById(`${sensor}_temp`);
+                const errorElement = document.getElementById(`${sensor}_error`);
+                const sensorElement = document.getElementById(`${sensor}_card`);
+                const statusElement = document.getElementById(`status_${sensor}`);
+                
+                if (json[sensor].error) {
+                    tempElement.innerText = "ERROR";
+                    errorElement.innerText = json[sensor].error;
+                    sensorElement.classList.add('error');
+                    statusElement.textContent = "Error";
+                    statusElement.style.color = 'var(--error)';
+                } else {
+                    tempElement.innerText = json[sensor].temp_f + " °F";
+                    errorElement.innerText = "";
+                    sensorElement.classList.remove('error');
+                    statusElement.textContent = "OK";
+                    statusElement.style.color = 'var(--success)';
+                }
+            });
+
+            document.getElementById('timestamp').innerText = "Last Updated: " + json.last_updated;
+            document.getElementById('response_time').textContent = responseTime;
+
+        } catch (e) {
+            console.error("Error fetching data:", e);
+            showNotification('Error fetching temperature data', 'error');
+        }
+    }
+
+    // Test sensors function
+    async function testSensors() {
+        try {
+            showNotification('Testing sensors...', 'info');
+            const res = await fetch('/sensor/test');
+            const results = await res.json();
+            
+            let message = "Sensor Test Complete:\n";
+            for (const [sensor, data] of Object.entries(results)) {
+                if (data.samples) {
+                    const validSamples = data.samples.filter(s => s !== null);
+                    message += `${sensor}: ${validSamples.length} valid readings\n`;
+                } else {
+                    message += `${sensor}: Not available\n`;
+                }
+            }
+            
+            showNotification(message, 'info');
+        } catch (e) {
+            showNotification('Error testing sensors: ' + e.message, 'error');
+        }
+    }
+
+    // Update temperatures every 3 seconds
+    setInterval(updateTemps, 3000);
+    updateTemps(); // Initial update
+</script>
+{% endblock %}

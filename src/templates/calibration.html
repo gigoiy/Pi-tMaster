@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Calibration - Pi-tMaster{% endblock %}
+
+{% block page_title %}Sensor Calibration{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 style="text-align: center; margin-bottom: 1rem;">3-Point Calibration</h2>
+    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 1.5rem;">
+        Calibrate your sensors for accurate temperature readings
+    </p>
+
+    <div class="form-group">
+        <label for="calibrationSensor">Select Sensor:</label>
+        <select id="calibrationSensor">
+            <option value="smoker_left">🔥 Smoker Left</option>
+            <option value="smoker_right">🔥 Smoker Right</option>
+            <option value="meat_probe">🥩 Meat Probe</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="actualTemp">Actual Known Temperature (°C):</label>
+        <input type="number" id="actualTemp" step="0.1" placeholder="Enter known reference temperature">
+        <small style="color: var(--text-secondary); display: block; margin-top: 0.5rem;">
+            Use a reliable reference thermometer for accurate calibration
+        </small>
+    </div>
+
+    <button class="btn success" onclick="addCalibrationPoint()">
+        <span>➕</span> Add Calibration Point
+    </button>
+
+    <button class="btn info" onclick="getCalibrationStatus()">
+        <span>📊</span> Check Calibration Status
+    </button>
+
+    <button class="btn danger" onclick="clearCalibration()">
+        <span>🗑️</span> Clear Calibration
+    </button>
+</div>
+
+<div id="calibrationStatus" class="card" style="display: none;">
+    <h3>Calibration Status</h3>
+    <div id="calibrationDetails"></div>
+</div>
+
+<div class="card">
+    <h3>Calibration Guide</h3>
+    <div style="margin-top: 1rem;">
+        <div style="background: #2a2a2a; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+            <strong>Step 1:</strong> Ice Bath (0°C)<br>
+            <small>Mix ice and water, wait for stabilization</small>
+        </div>
+        <div style="background: #2a2a2a; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+            <strong>Step 2:</strong> Room Temperature (~25°C)<br>
+            <small>Use a reliable reference thermometer</small>
+        </div>
+        <div style="background: #2a2a2a; padding: 1rem; border-radius: 8px;">
+            <strong>Step 3:</strong> Boiling Water (100°C)<br>
+            <small>At sea level, adjust for altitude if needed</small>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Calibration functions
+    async function addCalibrationPoint() {
+        const sensor = document.getElementById('calibrationSensor').value;
+        const actualTemp = parseFloat(document.getElementById('actualTemp').value);
+        
+        if (isNaN(actualTemp)) {
+            showNotification('Please enter the actual known temperature', 'error');
+            return;
+        }
+        
+        try {
+            showNotification('Adding calibration point...', 'info');
+            const response = await fetch('/calibration/add_point', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    sensor_name: sensor,
+                    actual_temp: actualTemp
+                })
+            });
+            const result = await response.json();
+            showNotification(result.message, result.status);
+            
+            // Clear input
+            document.getElementById('actualTemp').value = '';
+            
+            // Refresh calibration status
+            setTimeout(getCalibrationStatus, 1000);
+            
+        } catch (e) {
+            showNotification('Error adding calibration point: ' + e.message, 'error');
+        }
+    }
+    
+    async function getCalibrationStatus() {
+        const sensor = document.getElementById('calibrationSensor').value;
+        
+        try {
+            const response = await fetch('/calibration/status');
+            const data = await response.json();
+            const status = data[sensor];
+            
+            if (status.error) {
+                throw new Error(status.error);
+            }
+            
+            const details = document.getElementById('calibrationDetails');
+            let pointsHtml = '';
+            
+            if (status.points && status.points.length > 0) {
+                pointsHtml = '<div style="margin-top: 1rem;"><strong>Calibration Points:</strong>';
+                status.points.forEach((point, index) => {
+                    const date = new Date(point.timestamp * 1000).toLocaleString();
+                    pointsHtml += `
+                        <div style="background: #2a2a2a; padding: 0.75rem; border-radius: 6px; margin: 0.5rem 0;">
+                            <strong>Point ${index + 1}:</strong><br>
+                            Actual: ${point.actual_temp}°C<br>
+                            Measured: ${point.measured_temp.toFixed(2)}°C<br>
+                            <small style="color: var(--text-secondary);">${date}</small>
+                        </div>
+                    `;
+                });
+                pointsHtml += '</div>';
+            }
+            
+            details.innerHTML = `
+                <div class="status-grid">
+                    <div class="status-item">
+                        <div class="status-label">Calibrated</div>
+                        <div class="status-value" style="color: ${status.is_calibrated ? 'var(--success)' : 'var(--error)'}">
+                            ${status.is_calibrated ? 'YES' : 'NO'}
+                        </div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">Points</div>
+                        <div class="status-value">${status.points_count}/3</div>
+                    </div>
+                </div>
+                ${status.is_calibrated ? `
+                <div class="status-grid">
+                    <div class="status-item">
+                        <div class="status-label">Slope</div>
+                        <div class="status-value">${status.slope.toFixed(4)}</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">Intercept</div>
+                        <div class="status-value">${status.intercept.toFixed(4)}°C</div>
+                    </div>
+                </div>
+                ` : ''}
+                ${pointsHtml}
+            `;
+            
+            document.getElementById('calibrationStatus').style.display = 'block';
+            
+        } catch (e) {
+            showNotification('Error getting calibration status: ' + e.message, 'error');
+        }
+    }
+    
+    async function clearCalibration() {
+        const sensor = document.getElementById('calibrationSensor').value;
+        const confirmed = confirm(`Clear calibration for ${sensor}? This cannot be undone.`);
+        
+        if (confirmed) {
+            try {
+                const response = await fetch('/calibration/clear', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({sensor_name: sensor})
+                });
+                const result = await response.json();
+                showNotification(result.message, result.status);
+                
+                // Hide status display
+                document.getElementById('calibrationStatus').style.display = 'none';
+                
+            } catch (e) {
+                showNotification('Error clearing calibration: ' + e.message, 'error');
+            }
+        }
+    }
+</script>
+{% endblock %}

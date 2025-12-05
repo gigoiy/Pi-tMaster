@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}Power Management - Pi-tMaster{% endblock %}
+
+{% block page_title %}Power Management{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 style="text-align: center; margin-bottom: 1rem;">System Power Controls</h2>
+    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 1.5rem;">
+        Manage power settings and system operations
+    </p>
+
+    <button class="btn info" onclick="getPowerStatus()">
+        <span>📊</span> Check Power Status
+    </button>
+
+    <button class="btn success" onclick="enableLowPower()">
+        <span>🔋</span> Enable Low Power Mode
+    </button>
+
+    <button class="btn warning" onclick="enableFullPower()">
+        <span>🚀</span> Enable Full Power Mode
+    </button>
+</div>
+
+<div id="powerStatus" class="card" style="display: none;">
+    <h3 style="text-align: center; margin-bottom: 1rem;">Power Status</h3>
+    <div class="status-grid">
+        <div class="status-item">
+            <div class="status-label">CPU Governor</div>
+            <div class="status-value" id="cpuGovernor">--</div>
+        </div>
+        <div class="status-item">
+            <div class="status-label">CPU Frequency</div>
+            <div class="status-value" id="cpuFreq">--</div>
+        </div>
+        <div class="status-item">
+            <div class="status-label">Min Frequency</div>
+            <div class="status-value" id="cpuMinFreq">--</div>
+        </div>
+        <div class="status-item">
+            <div class="status-label">Max Frequency</div>
+            <div class="status-value" id="cpuMaxFreq">--</div>
+        </div>
+    </div>
+    
+    <div style="text-align: center; margin: 1rem 0; padding: 1rem; background: #2a2a2a; border-radius: 8px;">
+        <div class="status-label">System Mode</div>
+        <div class="status-value" id="systemMode" style="font-size: 1.5rem;">--</div>
+    </div>
+    
+    <div style="text-align: center; color: var(--text-secondary);">
+        <div class="status-label">Response Time</div>
+        <div class="status-value" id="systemUptime">--</div>
+    </div>
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: 1rem;">System Operations</h3>
+    
+    <button class="btn danger" onclick="rebootSystem()">
+        <span>🔄</span> Reboot System
+    </button>
+
+    <button class="btn danger" onclick="shutdownSystem()">
+        <span>⏻</span> Shutdown System
+    </button>
+</div>
+
+<div class="card">
+    <h3>Power Modes Explained</h3>
+    <div style="margin-top: 1rem;">
+        <div style="background: #2a2a2a; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+            <strong>🔋 Low Power Mode</strong><br>
+            <small>• CPU: 300-600 MHz</small><br>
+            <small>• Governor: powersave</small><br>
+            <small>• Best for battery/solar operation</small>
+        </div>
+        <div style="background: #2a2a2a; padding: 1rem; border-radius: 8px;">
+            <strong>🚀 Full Power Mode</strong><br>
+            <small>• CPU: 600-1500 MHz</small><br>
+            <small>• Governor: ondemand</small><br>
+            <small>• Best for responsive operation</small>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Power status function
+    async function getPowerStatus() {
+        try {
+            const res = await fetch('/powerstatus');
+            const data = await res.json();
+
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            const statusDiv = document.getElementById('powerStatus');
+
+            // Update all fields from JSON data
+            document.getElementById('cpuGovernor').textContent = data.cpu_governor || '--';
+            document.getElementById('cpuFreq').textContent = (data.cpu_cur_freq || '--') + ' MHz';
+            document.getElementById('cpuMinFreq').textContent = (data.cpu_min_freq || '--') + ' MHz';
+            document.getElementById('cpuMaxFreq').textContent = (data.cpu_max_freq || '--') + ' MHz';
+            document.getElementById('systemMode').textContent = data.power_mode || '--';
+
+            // Get response time
+            const responseTime = await getSystemResponseTime();
+            document.getElementById('systemUptime').textContent = responseTime;
+
+            // Color code based on power mode
+            const modeElement = document.getElementById('systemMode');
+            if (data.power_mode && data.power_mode.includes('LOW POWER')) {
+                modeElement.style.color = 'var(--success)';
+            } else if (data.power_mode && data.power_mode.includes('FULL POWER')) {
+                modeElement.style.color = 'var(--warning)';
+            } else {
+                modeElement.style.color = 'var(--error)';
+            }
+
+            statusDiv.style.display = 'block';
+            showNotification('Power status updated successfully');
+
+        } catch (e) {
+            console.error("Error fetching power status:", e);
+            showNotification('Error getting power status: ' + e.message, 'error');
+        }
+    }
+
+    // Enable low power mode
+    async function enableLowPower() {
+        try {
+            showNotification('Enabling low power mode...', 'info');
+            const res = await fetch('/enable-low-power');
+            const result = await res.text();
+            showNotification('Low power mode enabled successfully');
+            setTimeout(getPowerStatus, 2000);
+        } catch (e) {
+            console.error("Error enabling low power:", e);
+            showNotification('Error enabling low power mode', 'error');
+        }
+    }
+
+    // Enable full power mode
+    async function enableFullPower() {
+        try {
+            showNotification('Enabling full power mode...', 'info');
+            const res = await fetch('/enable-full-power');
+            const result = await res.text();
+            showNotification('Full power mode enabled successfully');
+            setTimeout(getPowerStatus, 2000);
+        } catch (e) {
+            console.error("Error enabling full power:", e);
+            showNotification('Error enabling full power mode', 'error');
+        }
+    }
+
+    // Shutdown function
+    async function shutdownSystem() {
+        const confirmed = confirm('⚠️ ARE YOU SURE YOU WANT TO SHUTDOWN THE SYSTEM?\n\nThis will turn off the Raspberry Pi completely.');
+        if (confirmed) {
+            try {
+                showNotification('System shutdown initiated...', 'error');
+                await fetch('/shutdown');
+                showNotification('Shutdown command sent. System should power off shortly.', 'error');
+            } catch (e) {
+                showNotification('Shutdown command sent. System should power off shortly.', 'error');
+            }
+        }
+    }
+
+    // Reboot function
+    async function rebootSystem() {
+        const confirmed = confirm('⚠️ ARE YOU SURE YOU WANT TO REBOOT THE SYSTEM?\n\nThe Raspberry Pi will restart.');
+        if (confirmed) {
+            try {
+                showNotification('System reboot initiated...', 'error');
+                await fetch('/reboot');
+                showNotification('Reboot command sent. System should restart shortly.', 'error');
+            } catch (e) {
+                showNotification('Reboot command sent. System should restart shortly.', 'error');
+            }
+        }
+    }
+</script>
+{% endblock %}
