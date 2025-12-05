@@ -1,4 +1,6 @@
 Flask==2.3.3
 spidev==3.6
 RPi.GPIO==0.7.1
+pytest==9.0.1
+pytest-mock==3.15.1
 MAX6675
